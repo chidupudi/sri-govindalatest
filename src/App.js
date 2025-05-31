@@ -1,4 +1,4 @@
-// src/App.js
+// src/App.js - Updated with invoice routes
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider, useDispatch, useSelector } from 'react-redux';
@@ -24,6 +24,7 @@ import ExpenseList from './components/expense/ExpenseList';
 import Billing from './components/billing/Billing';
 import Reports from './components/reports/Reports';
 import Invoice from './components/billing/Invoice';
+import InvoiceList from './components/billing/InvoiceList';
 
 const antdTheme = {
   token: {
@@ -95,7 +96,7 @@ export default function AppWrapper() {
             <Route 
               path="/*" 
               element={
-               
+                <ProtectedRoute>
                   <DashboardLayout>
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
@@ -105,10 +106,11 @@ export default function AppWrapper() {
                       <Route path="/expenses" element={<ExpenseList />} />
                       <Route path="/billing" element={<Billing />} />
                       <Route path="/reports" element={<Reports />} />
+                      <Route path="/invoices" element={<InvoiceList />} />
                       <Route path="/invoices/:id" element={<Invoice />} />
                     </Routes>
                   </DashboardLayout>
-                
+                </ProtectedRoute>
               } 
             />
           </Routes>

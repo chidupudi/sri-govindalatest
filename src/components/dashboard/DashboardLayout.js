@@ -1,3 +1,4 @@
+// src/components/dashboard/DashboardLayout.js - Updated with invoices menu
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -30,6 +31,7 @@ import {
   StockOutlined,
   ProfileOutlined,
   TeamOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
 
 import { logoutUser } from '../../features/auth/authSlice';
@@ -43,8 +45,9 @@ const menuItems = [
   { key: 'customers', path: '/customers', label: 'Customers', icon: <UserOutlined />, color: '#2e7d32' },
   { key: 'billing', path: '/billing', label: 'Billing', icon: <ShoppingCartOutlined />, color: '#ed6c02' },
   { key: 'orders', path: '/orders', label: 'Orders', icon: <FileTextOutlined />, color: '#0288d1' },
+  { key: 'invoices', path: '/invoices', label: 'Invoices', icon: <FilePdfOutlined />, color: '#7b1fa2' },
   { key: 'expenses', path: '/expenses', label: 'Expenses', icon: <WalletOutlined />, color: '#d32f2f' },
-  { key: 'reports', path: '/reports', label: 'Reports', icon: <BarChartOutlined />, color: '#7b1fa2' },
+  { key: 'reports', path: '/reports', label: 'Reports', icon: <BarChartOutlined />, color: '#388e3c' },
 ];
 
 const reportSubItems = [
@@ -67,6 +70,7 @@ const DashboardLayout = () => {
     for (const item of menuItems) {
       if (location.pathname === item.path) return item.key;
       if (item.key === 'reports' && location.pathname.startsWith('/reports')) return 'reports';
+      if (item.key === 'invoices' && location.pathname.startsWith('/invoices')) return 'invoices';
     }
     return 'dashboard';
   })();

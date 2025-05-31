@@ -1,3 +1,4 @@
+// src/components/billing/Invoice.js - Compact 4.5x6.5 inch invoice
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -10,11 +11,13 @@ import {
   Card,
   Spin,
   Space,
-  Divider
+  Divider,
+  Tag
 } from 'antd';
 import { DownloadOutlined, PrinterOutlined } from '@ant-design/icons';
 import { getOrder } from '../../features/order/orderSlice';
-import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const { Title, Text } = Typography;
 
@@ -29,132 +32,317 @@ const Invoice = () => {
   }, [dispatch, id]);
 
   const handlePrint = () => {
-    window.print();
+    const printContent = invoiceRef.current;
+    const WinPrint = window.open('', '', 'width=400,height=600');
+    WinPrint.document.write(`
+      <html>
+        <head>
+          <title>Invoice - ${currentOrder?.orderNumber}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              margin: 0; 
+              padding: 10px;
+              font-size: 12px;
+            }
+            .invoice-container {
+              width: 4.5in;
+              max-width: 4.5in;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+            th { background-color: #f5f5f5; font-weight: bold; }
+            .text-right { text-align: right; }
+            .text-center { text-center: center; }
+            .company-header { text-align: center; margin-bottom: 15px; }
+            .totals-section { margin-top: 10px; }
+            .discount-text { color: #52c41a; }
+            .strike { text-decoration: line-through; color: #999; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    WinPrint.document.close();
+    WinPrint.focus();
+    WinPrint.print();
+    WinPrint.close();
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!invoiceRef.current) return;
-    const doc = new jsPDF();
-    doc.html(invoiceRef.current, {
-      callback: function (doc) {
-        doc.save(`invoice-${currentOrder?.orderNumber || 'invoice'}.pdf`);
-      },
-      x: 10,
-      y: 10,
-    });
+    
+    try {
+      // Convert inches to pixels (96 DPI)
+      const width = 4.5 * 96; // 432px
+      const height = 6.5 * 96; // 624px
+      
+      const canvas = await html2canvas(invoiceRef.current, {
+        width: width,
+        height: height,
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        allowTaint: true
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create PDF with exact dimensions
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'in',
+        format: [4.5, 6.5]
+      });
+
+      pdf.addImage(imgData, 'PNG', 0, 0, 4.5, 6.5);
+      pdf.save(`invoice-${currentOrder?.orderNumber || 'invoice'}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to simple PDF generation
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'in',
+        format: [4.5, 6.5]
+      });
+      
+      pdf.setFontSize(10);
+      pdf.text('Invoice generated - Please use print option for better formatting', 0.2, 0.5);
+      pdf.save(`invoice-${currentOrder?.orderNumber || 'invoice'}.pdf`);
+    }
   };
 
   if (isLoading || !currentOrder) {
-    return <Spin size="large" />;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Spin size="large" tip="Loading invoice..." />
+      </div>
+    );
   }
 
-  const columns = [
+  // Calculate all totals (no GST)
+  const originalSubtotal = currentOrder.subtotal || 
+    currentOrder.items.reduce((sum, item) => sum + ((item.originalPrice || item.price) * item.quantity), 0);
+  
+  const totalDiscount = currentOrder.discount || 0;
+  const finalTotal = currentOrder.total || (originalSubtotal - totalDiscount);
+
+  const compactColumns = [
+    {
+      title: '#',
+      key: 'sno',
+      width: 30,
+      render: (_, __, index) => index + 1,
+    },
     {
       title: 'Item',
       dataIndex: ['product', 'name'],
       key: 'name',
+      width: 120,
+      render: (name, record) => (
+        <div style={{ fontSize: '11px' }}>
+          <div style={{ fontWeight: 'bold' }}>{name}</div>
+          {record.product?.isDynamic && (
+            <Tag color="blue" size="small" style={{ fontSize: '9px', padding: '0 4px' }}>Custom</Tag>
+          )}
+        </div>
+      ),
     },
     {
-      title: 'Weight (g)',
-      dataIndex: 'weight',
-      key: 'weight',
-      align: 'right',
-    },
-    {
-      title: 'Quantity',
+      title: 'Qty',
       dataIndex: 'quantity',
       key: 'quantity',
-      align: 'right',
+      align: 'center',
+      width: 35,
     },
     {
-      title: 'Price',
-      dataIndex: 'price',
-      key: 'price',
+      title: 'Rate',
+      key: 'rate',
       align: 'right',
-      render: (price) => `₹${price}`,
+      width: 60,
+      render: (_, record) => {
+        const hasDiscount = record.originalPrice && record.originalPrice !== record.price;
+        return (
+          <div style={{ fontSize: '10px' }}>
+            {hasDiscount ? (
+              <>
+                <div style={{ textDecoration: 'line-through', color: '#999' }}>
+                  ₹{record.originalPrice}
+                </div>
+                <div style={{ fontWeight: 'bold' }}>₹{record.price}</div>
+              </>
+            ) : (
+              <div style={{ fontWeight: 'bold' }}>₹{record.price}</div>
+            )}
+          </div>
+        );
+      },
     },
     {
-      title: 'Total',
-      key: 'total',
+      title: 'Amount',
+      key: 'amount',
       align: 'right',
-      render: (_, record) => `₹${record.price * record.quantity}`,
+      width: 70,
+      render: (_, record) => {
+        const originalAmount = record.originalPrice ? record.originalPrice * record.quantity : record.price * record.quantity;
+        const finalAmount = record.price * record.quantity;
+        const hasDiscount = originalAmount !== finalAmount;
+        
+        return (
+          <div style={{ fontSize: '10px' }}>
+            {hasDiscount ? (
+              <>
+                <div style={{ textDecoration: 'line-through', color: '#999' }}>
+                  ₹{originalAmount.toFixed(2)}
+                </div>
+                <div style={{ fontWeight: 'bold' }}>₹{finalAmount.toFixed(2)}</div>
+              </>
+            ) : (
+              <div style={{ fontWeight: 'bold' }}>₹{finalAmount.toFixed(2)}</div>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <Row justify="space-between" style={{ marginBottom: 16 }}>
+    <div style={{ padding: 24, backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Action Buttons */}
+      <Row justify="space-between" style={{ marginBottom: 16 }} className="no-print">
         <Title level={3}>Invoice</Title>
         <Space>
           <Button icon={<PrinterOutlined />} onClick={handlePrint}>
             Print
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+          <Button icon={<DownloadOutlined />} onClick={handleDownload} type="primary">
             Download PDF
           </Button>
         </Space>
       </Row>
 
-      <Card ref={invoiceRef} bordered>
-        <Row justify="space-between" gutter={16}>
-          <Col span={12}>
-            <Title level={5}>Sri Govinda</Title>
-            <Text>Your Shop Address</Text><br />
-            <Text>Phone: Your Phone</Text><br />
-            <Text>Email: Your Email</Text><br />
-            <Text>GST No: Your GST Number</Text>
-          </Col>
-          <Col span={12} style={{ textAlign: 'right' }}>
-            <Text>Invoice No: {currentOrder.orderNumber}</Text><br />
-            <Text>Date: {new Date(currentOrder.createdAt).toLocaleDateString()}</Text>
-          </Col>
-        </Row>
+      {/* Invoice Content - Exact 4.5x6.5 inch size */}
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div 
+          ref={invoiceRef}
+          className="invoice-container"
+          style={{ 
+            width: '432px', // 4.5 inches at 96 DPI
+            height: '624px', // 6.5 inches at 96 DPI
+            backgroundColor: 'white',
+            padding: '12px',
+            border: '1px solid #ddd',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '11px',
+            lineHeight: '1.2',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '12px', borderBottom: '2px solid #1890ff', paddingBottom: '8px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1890ff', margin: 0 }}>
+              Sri Govinda
+            </div>
+            <div style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>
+              123 Business Street, Hyderabad - 500001<br />
+              Ph: +91 98765 43210 | Email: info@srigovinda.com
+            </div>
+          </div>
 
-        <Divider />
+          {/* Invoice Details */}
+          <Row justify="space-between" style={{ marginBottom: '10px' }}>
+            <Col>
+              <div style={{ fontSize: '10px' }}>
+                <strong>Invoice: {currentOrder.orderNumber}</strong><br />
+                Date: {new Date(currentOrder.createdAt?.toDate?.() || currentOrder.createdAt).toLocaleDateString('en-IN')}<br />
+                Time: {new Date(currentOrder.createdAt?.toDate?.() || currentOrder.createdAt).toLocaleTimeString('en-IN', { hour12: true })}
+              </div>
+            </Col>
+            <Col>
+              <div style={{ fontSize: '10px', textAlign: 'right' }}>
+                <strong>Bill To:</strong><br />
+                {currentOrder.customer?.name || 'Walk-in Customer'}<br />
+                {currentOrder.customer?.phone && `Ph: ${currentOrder.customer.phone}`}
+              </div>
+            </Col>
+          </Row>
 
-        <Title level={5}>Customer Details</Title>
-        <Text>{currentOrder.customer?.name}</Text><br />
-        <Text>{currentOrder.customer?.phone}</Text><br />
-        <Text>{currentOrder.customer?.address?.street}</Text><br />
-        <Text>
-          {currentOrder.customer?.address?.city}, {currentOrder.customer?.address?.state}
-        </Text><br />
-        {currentOrder.customer?.gstNumber && (
-          <Text>GST No: {currentOrder.customer.gstNumber}</Text>
-        )}
+          <Divider style={{ margin: '8px 0' }} />
 
-        <Divider />
+          {/* Items Table */}
+          <Table
+            columns={compactColumns}
+            dataSource={currentOrder.items}
+            pagination={false}
+            rowKey={(item, index) => `${item.product?.id || item.productId}-${index}`}
+            bordered
+            size="small"
+            style={{ 
+              marginBottom: '10px',
+              fontSize: '10px'
+            }}
+            showHeader={true}
+          />
 
-        <Table
-          columns={columns}
-          dataSource={currentOrder.items}
-          pagination={false}
-          rowKey="_id"
-        />
-
-        <Row justify="end" style={{ marginTop: 16 }}>
-          <Col span={12}>
-            <Row justify="space-between">
-              <Col><Text strong>Subtotal:</Text></Col>
-              <Col><Text>₹{currentOrder.subtotal}</Text></Col>
+          {/* Totals Section */}
+          <div style={{ 
+            backgroundColor: '#f8f9fa', 
+            padding: '8px', 
+            borderRadius: '4px',
+            fontSize: '10px'
+          }}>
+            <Row justify="space-between" style={{ marginBottom: '3px' }}>
+              <span>Subtotal:</span>
+              <span style={{ fontWeight: 'bold' }}>₹{originalSubtotal.toFixed(2)}</span>
             </Row>
-            <Row justify="space-between">
-              <Col><Text strong>GST (18%):</Text></Col>
-              <Col><Text>₹{currentOrder.gst}</Text></Col>
-            </Row>
-            <Row justify="space-between" style={{ marginTop: 8 }}>
-              <Col><Title level={5}>Total:</Title></Col>
-              <Col><Title level={5}>₹{currentOrder.total}</Title></Col>
-            </Row>
-          </Col>
-        </Row>
+            
+            {totalDiscount > 0 && (
+              <Row justify="space-between" style={{ marginBottom: '3px' }}>
+                <span>Discount:</span>
+                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>-₹{totalDiscount.toFixed(2)}</span>
+              </Row>
+            )}
+            
+            <div style={{ borderTop: '1px solid #ddd', paddingTop: '5px', marginTop: '5px' }}>
+              <Row justify="space-between">
+                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Total Amount:</span>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#1890ff' }}>
+                  ₹{finalTotal.toFixed(2)}
+                </span>
+              </Row>
+            </div>
+          </div>
 
-        <Divider />
+          {/* Payment Info */}
+          <div style={{ marginTop: '8px', fontSize: '9px', textAlign: 'center' }}>
+            <div style={{ marginBottom: '5px' }}>
+              <strong>Payment Method:</strong> {currentOrder.paymentMethod} | <strong>Status:</strong> <span style={{ color: '#52c41a' }}>PAID</span>
+            </div>
+          </div>
 
-        <Text>Payment Method: {currentOrder.paymentMethod}</Text>
-        <br />
-        <Text type="secondary">Thank you for your business!</Text>
-      </Card>
+          {/* Footer */}
+          <div style={{ 
+            position: 'absolute', 
+            bottom: '12px', 
+            left: '12px', 
+            right: '12px',
+            textAlign: 'center', 
+            fontSize: '8px', 
+            color: '#666',
+            borderTop: '1px solid #eee',
+            paddingTop: '5px'
+          }}>
+            <div style={{ marginBottom: '2px' }}>Thank you for your business!</div>
+            <div>Visit us again at Sri Govinda</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

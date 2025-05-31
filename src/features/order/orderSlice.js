@@ -1,6 +1,7 @@
-// src/features/order/orderSlice.js - Fixed to avoid index issues
+// src/features/order/orderSlice.js - No GST version with invoice integration
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import firebaseService from '../../services/firebaseService';
+import invoiceService from '../../services/invoiceService';
 import { updateStock } from '../products/productSlice';
 import { updateCustomerStats } from '../customer/customerSlice';
 
@@ -9,21 +10,17 @@ export const fetchOrders = createAsyncThunk(
   'orders/fetchAll',
   async (filters = {}, { rejectWithValue }) => {
     try {
-      // Use simplified options to avoid index requirements
       const options = {
-        limit: filters.limit || 100 // Add reasonable default limit
+        limit: filters.limit || 100
       };
 
-      // Add where conditions for client-side filtering
       if (filters.status || filters.customerId || filters.startDate || filters.endDate) {
         options.where = [];
         
-        // Only add simple filters that don't require indexes
         if (filters.status) {
           options.where.push({ field: 'status', operator: '==', value: filters.status });
         }
         
-        // Date range filters will be applied client-side
         if (filters.startDate) {
           options.where.push({ field: 'createdAt', operator: '>=', value: new Date(filters.startDate) });
         }
@@ -35,7 +32,6 @@ export const fetchOrders = createAsyncThunk(
 
       let orders = await firebaseService.getAll('orders', options);
 
-      // Apply additional client-side filtering
       if (filters.customerId) {
         orders = orders.filter(order => order.customerId === filters.customerId);
       }
@@ -48,12 +44,10 @@ export const fetchOrders = createAsyncThunk(
         );
       }
 
-      // Populate customer data for orders that have customerId
       const customerIds = [...new Set(orders.filter(o => o.customerId).map(o => o.customerId))];
       const customers = {};
       
       if (customerIds.length > 0) {
-        // Get customers in batches to avoid too many requests
         for (const customerId of customerIds) {
           try {
             const customer = await firebaseService.getById('customers', customerId);
@@ -64,7 +58,6 @@ export const fetchOrders = createAsyncThunk(
         }
       }
 
-      // Add customer data to orders
       orders = orders.map(order => ({
         ...order,
         customer: order.customerId ? customers[order.customerId] : null
@@ -78,30 +71,42 @@ export const fetchOrders = createAsyncThunk(
   }
 );
 
-// Create order
+// Create order with invoice integration (no GST)
 export const createOrder = createAsyncThunk(
   'orders/create',
   async (orderData, { rejectWithValue, dispatch }) => {
     try {
-      // Calculate totals
-      const subtotal = orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const gstAmount = subtotal * 0.18;
-      const total = subtotal + gstAmount;
+      // Calculate totals without GST
+      const subtotal = orderData.subtotal || orderData.items.reduce((sum, item) => sum + (item.originalPrice * item.quantity), 0);
+      const afterDiscount = orderData.afterDiscount || orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discount = orderData.discount || (subtotal - afterDiscount);
+      const discountPercentage = orderData.discountPercentage || (subtotal > 0 ? (discount / subtotal) * 100 : 0);
+      const total = orderData.total || afterDiscount; // No GST
 
       const order = await firebaseService.create('orders', {
         ...orderData,
         orderNumber: firebaseService.generateId('ORD-'),
         subtotal,
-        gst: gstAmount,
-        total,
+        discount,
+        discountPercentage,
+        afterDiscount,
+        total, // No GST, total is same as afterDiscount
         status: 'completed',
         paymentStatus: 'paid',
-        createdAt: new Date() // Ensure consistent date format
+        createdAt: new Date()
       });
 
-      // Update product stock
+      // Create invoice record for efficient storage and retrieval
+      await invoiceService.createInvoice({
+        ...order,
+        customer: orderData.customerId ? await firebaseService.getById('customers', orderData.customerId) : null
+      });
+
+      // Update product stock for non-dynamic products
       for (const item of orderData.items) {
-        dispatch(updateStock({ id: item.product.id, stockChange: -item.quantity }));
+        if (!item.product.isDynamic && item.product.id && !item.product.id.startsWith('temp_')) {
+          dispatch(updateStock({ id: item.product.id, stockChange: -item.quantity }));
+        }
       }
 
       // Update customer stats if customer exists
@@ -127,7 +132,6 @@ export const getOrder = createAsyncThunk(
     try {
       const order = await firebaseService.getById('orders', id);
       
-      // Populate customer data
       if (order.customerId) {
         try {
           const customer = await firebaseService.getById('customers', order.customerId);
@@ -158,10 +162,19 @@ export const cancelOrder = createAsyncThunk(
         cancelledAt: new Date()
       });
 
-      // Restore product stock
+      // Update invoice status
+      try {
+        await invoiceService.updateInvoiceStatus(id, 'cancelled');
+      } catch (error) {
+        console.warn('Failed to update invoice status:', error);
+      }
+
+      // Restore product stock for non-dynamic products
       if (order.items) {
         for (const item of order.items) {
-          dispatch(updateStock({ id: item.product.id, stockChange: item.quantity }));
+          if (!item.product.isDynamic && item.product.id && !item.product.id.startsWith('temp_')) {
+            dispatch(updateStock({ id: item.product.id, stockChange: item.quantity }));
+          }
         }
       }
 
@@ -186,15 +199,20 @@ const orderSlice = createSlice({
   name: 'orders',
   initialState,
   reducers: {
-    // Cart management
+    // Enhanced cart management with price tracking
     addToCart: (state, action) => {
-      const { product, quantity = 1 } = action.payload;
+      const { product, quantity = 1, originalPrice, currentPrice } = action.payload;
       const existingItem = state.cart.find(item => item.product.id === product.id);
       
       if (existingItem) {
         existingItem.quantity += quantity;
       } else {
-        state.cart.push({ product, quantity });
+        state.cart.push({ 
+          product, 
+          quantity,
+          originalPrice: originalPrice || product.price,
+          currentPrice: currentPrice || product.price
+        });
       }
     },
     removeFromCart: (state, action) => {
@@ -205,6 +223,14 @@ const orderSlice = createSlice({
       const item = state.cart.find(item => item.product.id === productId);
       if (item && quantity > 0) {
         item.quantity = quantity;
+      }
+    },
+    // Action for updating item price
+    updateCartItemPrice: (state, action) => {
+      const { productId, newPrice } = action.payload;
+      const item = state.cart.find(item => item.product.id === productId);
+      if (item && newPrice > 0) {
+        item.currentPrice = newPrice;
       }
     },
     clearCart: (state) => {
@@ -230,7 +256,6 @@ const orderSlice = createSlice({
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        // Don't clear items on error, keep existing data
       })
       // Create order
       .addCase(createOrder.pending, (state) => {
@@ -284,6 +309,7 @@ export const {
   addToCart, 
   removeFromCart, 
   updateCartItemQuantity,
+  updateCartItemPrice,
   clearCart,
   clearError
 } = orderSlice.actions;
