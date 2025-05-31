@@ -1,4 +1,4 @@
-// src/components/dashboard/DashboardLayout.js - Updated with invoices menu
+// src/components/dashboard/DashboardLayout.js - Debug version
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -27,10 +27,6 @@ import {
   LogoutOutlined,
   SettingOutlined,
   NotificationOutlined,
-  DownOutlined,
-  StockOutlined,
-  ProfileOutlined,
-  TeamOutlined,
   FilePdfOutlined,
 } from '@ant-design/icons';
 
@@ -50,21 +46,17 @@ const menuItems = [
   { key: 'reports', path: '/reports', label: 'Reports', icon: <BarChartOutlined />, color: '#388e3c' },
 ];
 
-const reportSubItems = [
-  { key: 'sales', path: '/reports/sales', label: 'Sales Report', icon: <StockOutlined /> },
-  { key: 'inventory', path: '/reports/inventory', label: 'Inventory', icon: <AppstoreOutlined /> },
-  { key: 'customers', path: '/reports/customers', label: 'Customers', icon: <TeamOutlined /> },
-  { key: 'expenses', path: '/reports/expenses', label: 'Expenses', icon: <WalletOutlined /> },
-];
-
-const DashboardLayout = () => {
+const DashboardLayout = ({ children }) => {
   const dispatch = useDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useSelector(state => state.auth);
 
   const [collapsed, setCollapsed] = useState(false);
-  const [reportsOpen, setReportsOpen] = useState(false);
+
+  console.log('DashboardLayout rendering - User:', user);
+  console.log('Current location:', location.pathname);
+  console.log('Children:', children);
 
   const selectedKey = (() => {
     for (const item of menuItems) {
@@ -76,18 +68,28 @@ const DashboardLayout = () => {
   })();
 
   const onMenuClick = ({ key }) => {
-    if (key === 'reports') {
-      setReportsOpen(!reportsOpen);
-    } else {
-      const item = menuItems.find(i => i.key === key);
-      if (item) navigate(item.path);
+    console.log('Menu clicked:', key);
+    const item = menuItems.find(i => i.key === key);
+    if (item) {
+      console.log('Navigating to:', item.path);
+      navigate(item.path);
+    }
+  };
+
+  const handleLogout = async () => {
+    console.log('Logging out...');
+    try {
+      await dispatch(logoutUser());
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 
   const profileItems = [
     {
       key: 'profile',
-      icon: <ProfileOutlined />,
+      icon: <UserOutlined />,
       label: 'Profile',
       onClick: () => navigate('/profile')
     },
@@ -102,10 +104,7 @@ const DashboardLayout = () => {
       key: 'logout',
       icon: <LogoutOutlined style={{ color: 'red' }} />,
       label: 'Logout',
-      onClick: async () => {
-        await dispatch(logoutUser());
-        navigate('/login');
-      }
+      onClick: handleLogout
     }
   ];
 
@@ -177,32 +176,14 @@ const DashboardLayout = () => {
           mode="inline"
           selectedKeys={[selectedKey]}
           style={{ flex: 1, borderRight: 0 }}
+          onClick={onMenuClick}
           items={menuItems.map(item => ({
             key: item.key,
             icon: item.icon,
             label: item.label,
-            onClick: onMenuClick,
             style: { color: selectedKey === item.key ? item.color : undefined }
           }))}
         />
-
-        {reportsOpen && (
-          <Menu
-            mode="inline"
-            selectedKeys={reportSubItems.filter(i => location.pathname === i.path).map(i => i.key)}
-            style={{ borderRight: 0, paddingLeft: 24 }}
-            onClick={({ key }) => {
-              const subItem = reportSubItems.find(i => i.key === key);
-              if (subItem) navigate(subItem.path);
-            }}
-          >
-            {reportSubItems.map(subItem => (
-              <Menu.Item key={subItem.key} icon={subItem.icon}>
-                {subItem.label}
-              </Menu.Item>
-            ))}
-          </Menu>
-        )}
 
         <Divider />
 
@@ -253,8 +234,9 @@ const DashboardLayout = () => {
           </div>
         </Header>
 
-        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280 }}>
-          <Outlet />
+        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, background: '#fff' }}>
+         
+          {children}
         </Content>
       </Layout>
     </Layout>

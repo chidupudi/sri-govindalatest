@@ -1,8 +1,8 @@
-// src/App.js - Updated with invoice routes
+// src/App.js - Fixed version
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider, useDispatch, useSelector } from 'react-redux';
-import { ConfigProvider, Spin, App } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import 'antd/dist/reset.css';
 import dayjs from 'dayjs';
 import 'dayjs/locale/en';
@@ -48,9 +48,11 @@ function AuthListener() {
   const dispatch = useDispatch();
 
   useEffect(() => {
+    console.log('Setting up auth listener...');
     dispatch(setLoading(true));
     
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user ? 'User logged in' : 'User logged out');
       if (user) {
         dispatch(setUser({
           uid: user.uid,
@@ -71,50 +73,78 @@ function AuthListener() {
 
 // Protected Route component
 function ProtectedRoute({ children }) {
-  const { user, loading } = useSelector(state => state.auth);
+  const { user, isLoading } = useSelector(state => state.auth);
   
-  if (loading) {
+  console.log('ProtectedRoute - User:', user, 'Loading:', isLoading);
+  
+  if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column'
+      }}>
         <Spin size="large" />
+        <p style={{ marginTop: 16 }}>Loading...</p>
       </div>
     );
   }
   
-  return user ? children : <Navigate to="/login" />;
+  if (!user) {
+    console.log('No user, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
 }
 
+// Main app content
+function AppContent() {
+  return (
+    <Router>
+      <AuthListener />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        {/* Protected routes */}
+        <Route 
+          path="/*" 
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/products" element={<ProductList />} />
+                  <Route path="/customers" element={<CustomerList />} />
+                  <Route path="/orders" element={<OrderList />} />
+                  <Route path="/expenses" element={<ExpenseList />} />
+                  <Route path="/billing" element={<Billing />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/invoices" element={<InvoiceList />} />
+                  <Route path="/invoices/:id" element={<Invoice />} />
+                  {/* Catch all route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </Router>
+  );
+}
+
+// Root component
 export default function AppWrapper() {
   return (
     <Provider store={store}>
       <ConfigProvider theme={antdTheme}>
-        <Router>
-          <AuthListener />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route 
-              path="/*" 
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/products" element={<ProductList />} />
-                      <Route path="/customers" element={<CustomerList />} />
-                      <Route path="/orders" element={<OrderList />} />
-                      <Route path="/expenses" element={<ExpenseList />} />
-                      <Route path="/billing" element={<Billing />} />
-                      <Route path="/reports" element={<Reports />} />
-                      <Route path="/invoices" element={<InvoiceList />} />
-                      <Route path="/invoices/:id" element={<Invoice />} />
-                    </Routes>
-                  </DashboardLayout>
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
-        </Router>
+        <AppContent />
       </ConfigProvider>
     </Provider>
   );

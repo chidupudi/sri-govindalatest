@@ -1,4 +1,4 @@
-// src/components/billing/Billing.js - No GST version
+// src/components/billing/Billing.js - Final version with single payment confirmation
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -10,22 +10,46 @@ import {
   Select,
   Typography,
   Alert,
-  Divider,
   message,
   Input,
   Form,
   Modal,
   Space,
+  Tabs,
+  Badge,
+  Divider,
+  Table,
+  Tag,
+  Popconfirm,
+  Statistic
 } from 'antd';
-import { PlusOutlined, UserAddOutlined } from '@ant-design/icons';
-import { createOrder, addToCart } from '../../features/order/orderSlice';
+import { 
+  PlusOutlined, 
+  UserAddOutlined, 
+  ShoppingCartOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  CalculatorOutlined,
+  PrinterOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
+import { 
+  createOrder, 
+  addToCart, 
+  removeFromCart, 
+  updateCartItemQuantity, 
+  updateCartItemPrice,
+  clearCart 
+} from '../../features/order/orderSlice';
 import { fetchCustomers, createCustomer } from '../../features/customer/customerSlice';
 import { fetchProducts, createProduct } from '../../features/products/productSlice';
-import Cart from './Cart';
 import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+const { TabPane } = Tabs;
 
 const Billing = () => {
   const navigate = useNavigate();
@@ -34,18 +58,25 @@ const Billing = () => {
   const { items: customers } = useSelector(state => state.customers);
   const { items: products } = useSelector(state => state.products);
 
+  // Basic states
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   
-  // Dynamic product states
+  // Modal states
   const [showProductModal, setShowProductModal] = useState(false);
-  const [productForm] = Form.useForm();
-  
-  // Dynamic customer states
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [productForm] = Form.useForm();
   const [customerForm] = Form.useForm();
+  
+  // Price editing states
+  const [editingItem, setEditingItem] = useState(null);
+  const [newPrice, setNewPrice] = useState(0);
+
+  // Payment confirmation states
+  const [finalPaymentMethod, setFinalPaymentMethod] = useState('Cash');
 
   const paymentMethods = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
 
@@ -54,6 +85,7 @@ const Billing = () => {
     dispatch(fetchProducts({}));
   }, [dispatch]);
 
+  // Product handling
   const handleAddProduct = () => {
     if (selectedProduct && quantity > 0) {
       dispatch(addToCart({ 
@@ -64,8 +96,9 @@ const Billing = () => {
       }));
       setSelectedProduct(null);
       setQuantity(1);
+      message.success(`${selectedProduct.name} added to cart`);
     } else {
-      message.warning('Please select a product and enter a valid quantity.');
+      message.warning('Please select a product and enter quantity');
     }
   };
 
@@ -73,17 +106,15 @@ const Billing = () => {
     try {
       const values = await productForm.validateFields();
       
-      // Create a temporary product for the cart
       const tempProduct = {
         id: `temp_${Date.now()}`,
         name: values.name,
         price: values.price,
-        category: 'Dynamic',
+        category: 'Custom',
         stock: 999,
         isDynamic: true
       };
 
-      // Add to cart immediately
       dispatch(addToCart({ 
         product: tempProduct, 
         quantity: values.quantity,
@@ -91,38 +122,32 @@ const Billing = () => {
         currentPrice: values.price
       }));
 
-      // Also create the product in the system for future use
       dispatch(createProduct({
         name: values.name,
         price: values.price,
-        category: 'Dynamic',
+        category: 'Custom',
         stock: 999,
-        description: 'Dynamically added product'
+        description: 'Custom product'
       }));
 
       productForm.resetFields();
       setShowProductModal(false);
-      message.success('Product added to cart!');
+      message.success('Custom product added!');
     } catch (error) {
       message.error('Please fill all required fields');
     }
   };
 
+  // Customer handling
   const handleAddDynamicCustomer = async () => {
     try {
       const values = await customerForm.validateFields();
       
-      // Create customer
       const result = await dispatch(createCustomer({
         name: values.name,
         phone: values.phone || '',
         email: values.email || '',
-        address: {
-          street: '',
-          city: '',
-          state: '',
-          pincode: ''
-        }
+        address: { street: '', city: '', state: '', pincode: '' }
       }));
 
       if (createCustomer.fulfilled.match(result)) {
@@ -137,6 +162,50 @@ const Billing = () => {
     }
   };
 
+  // Cart item management
+  const handleQuantityChange = (productId, newQuantity) => {
+    if (newQuantity > 0) {
+      dispatch(updateCartItemQuantity({ productId, quantity: newQuantity }));
+    }
+  };
+
+  const handleRemoveItem = (productId) => {
+    dispatch(removeFromCart(productId));
+    message.success('Item removed from cart');
+  };
+
+  // Simple price negotiation
+  const openPriceEdit = (item) => {
+    setEditingItem(item);
+    setNewPrice(item.currentPrice);
+    setShowPriceModal(true);
+  };
+
+  const applyNewPrice = () => {
+    if (!editingItem || newPrice <= 0) {
+      message.error('Please enter a valid price');
+      return;
+    }
+
+    dispatch(updateCartItemPrice({ 
+      productId: editingItem.product.id, 
+      newPrice: newPrice 
+    }));
+    
+    const savings = editingItem.originalPrice - newPrice;
+    if (savings > 0) {
+      message.success(`Price updated! Customer saves ₹${savings.toFixed(2)}`);
+    } else if (savings < 0) {
+      message.success(`Price updated! Added ₹${Math.abs(savings).toFixed(2)}`);
+    } else {
+      message.success('Price updated!');
+    }
+    
+    setShowPriceModal(false);
+    setEditingItem(null);
+  };
+
+  // Calculations
   const calculateTotals = () => {
     const subtotal = cart.reduce((total, item) => total + (item.originalPrice * item.quantity), 0);
     const currentTotal = cart.reduce((total, item) => total + (item.currentPrice * item.quantity), 0);
@@ -148,21 +217,30 @@ const Billing = () => {
       currentTotal,
       totalDiscount,
       discountPercentage,
-      finalTotal: currentTotal // No GST, so final total is same as current total
+      finalTotal: currentTotal,
+      itemCount: cart.length,
+      totalQuantity: cart.reduce((total, item) => total + item.quantity, 0)
     };
   };
 
-  const handleSubmit = async () => {
+  // Order submission with payment confirmation
+  const handleSubmit = () => {
     if (cart.length === 0) {
       message.warning('Please add items to cart');
       return;
     }
     
     if (!selectedCustomer) {
-      message.warning("Please select a customer before generating invoice.");
+      message.warning("Please select a customer");
       return;
     }
 
+    // Set default payment method and show confirmation
+    setFinalPaymentMethod('Cash');
+    setShowPaymentModal(true);
+  };
+
+  const confirmAndGenerateInvoice = async () => {
     const totals = calculateTotals();
 
     const orderData = {
@@ -177,193 +255,647 @@ const Billing = () => {
         originalPrice: item.originalPrice,
         currentPrice: item.currentPrice,
         price: item.currentPrice,
-        discount: ((item.originalPrice - item.currentPrice) / item.originalPrice) * 100
+        discount: item.originalPrice > 0 ? ((item.originalPrice - item.currentPrice) / item.originalPrice) * 100 : 0
       })),
-      paymentMethod,
+      paymentMethod: finalPaymentMethod,
       subtotal: totals.subtotal,
       discount: totals.totalDiscount,
       discountPercentage: totals.discountPercentage,
       afterDiscount: totals.currentTotal,
-      total: totals.finalTotal, // No GST
+      total: totals.finalTotal,
     };
 
     const result = await dispatch(createOrder(orderData));
     if (result.type === 'orders/create/fulfilled') {
       message.success('Invoice generated successfully!');
+      dispatch(clearCart());
+      setShowPaymentModal(false);
       navigate(`/invoices/${result.payload.id}`);
     }
   };
 
   const totals = calculateTotals();
 
+  // Cart table columns
+  const cartColumns = [
+    {
+      title: 'Item',
+      dataIndex: ['product', 'name'],
+      key: 'name',
+      width: 120,
+      render: (name, record) => (
+        <div>
+          <Text strong style={{ fontSize: '12px' }}>{name}</Text>
+          {record.product.isDynamic && (
+            <Tag color="blue" size="small" style={{ marginLeft: 4, fontSize: '9px' }}>Custom</Tag>
+          )}
+          <div style={{ fontSize: '10px', color: '#666' }}>
+            {record.product.category}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Qty',
+      key: 'quantity',
+      width: 50,
+      render: (_, record) => (
+        <InputNumber
+          min={1}
+          value={record.quantity}
+          onChange={(val) => handleQuantityChange(record.product.id, val)}
+          size="small"
+          style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: 'Price',
+      key: 'price',
+      width: 85,
+      render: (_, record) => {
+        const hasDiscount = record.originalPrice !== record.currentPrice;
+        
+        return (
+          <div>
+            {hasDiscount && (
+              <div style={{ 
+                fontSize: '10px', 
+                textDecoration: 'line-through', 
+                color: '#999' 
+              }}>
+                ₹{record.originalPrice}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Text strong style={{ color: hasDiscount ? '#52c41a' : 'inherit' }}>
+                ₹{record.currentPrice}
+              </Text>
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openPriceEdit(record)}
+                style={{ padding: 0, minWidth: 'auto' }}
+                title="Change Price"
+              />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Total',
+      key: 'total',
+      width: 70,
+      render: (_, record) => {
+        const itemTotal = record.currentPrice * record.quantity;
+        const originalTotal = record.originalPrice * record.quantity;
+        const hasDiscount = originalTotal !== itemTotal;
+        
+        return (
+          <div>
+            {hasDiscount && (
+              <div style={{ 
+                fontSize: '10px', 
+                textDecoration: 'line-through', 
+                color: '#999' 
+              }}>
+                ₹{originalTotal.toFixed(2)}
+              </div>
+            )}
+            <Text strong style={{ color: hasDiscount ? '#52c41a' : 'inherit' }}>
+              ₹{itemTotal.toFixed(2)}
+            </Text>
+            {hasDiscount && (
+              <div style={{ fontSize: '9px', color: '#52c41a' }}>
+                {originalTotal > itemTotal ? 'Save' : 'Extra'} ₹{Math.abs(originalTotal - itemTotal).toFixed(2)}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: 30,
+      render: (_, record) => (
+        <Popconfirm
+          title="Remove item?"
+          onConfirm={() => handleRemoveItem(record.product.id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            size="small"
+            style={{ padding: 0 }}
+          />
+        </Popconfirm>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3}>Billing</Title>
-
-      {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
-
-      <Row gutter={24}>
-        <Col xs={24} md={16}>
-          {/* Existing Products Section */}
-          <Card title="Select Existing Products" style={{ marginBottom: 24 }}>
-            <Row gutter={16}>
-              <Col span={10}>
-                <Select
-                  showSearch
-                  style={{ width: '100%' }}
-                  placeholder="Select Product"
-                  value={selectedProduct?.id}
-                  onChange={(value) => {
-                    const product = products.find(p => p.id === value);
-                    setSelectedProduct(product || null);
-                  }}
-                  filterOption={(input, option) =>
-                    option.children.toLowerCase().includes(input.toLowerCase())
-                  }
+    <div style={{ padding: 16, height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+      <Row gutter={12} style={{ height: '100%' }}>
+        {/* Left Panel - Product Selection & Cart */}
+        <Col xs={24} lg={14} style={{ height: '100%' }}>
+          <Card 
+            title={
+              <Space>
+                <ShoppingCartOutlined />
+                <span>Product Selection</span>
+                <Badge count={totals.totalQuantity} style={{ backgroundColor: '#52c41a' }} />
+              </Space>
+            }
+            size="small"
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            bodyStyle={{ flex: 1, overflow: 'hidden', padding: '12px' }}
+            extra={
+              cart.length > 0 && (
+                <Popconfirm
+                  title="Clear all items from cart?"
+                  onConfirm={() => dispatch(clearCart())}
+                  okText="Yes"
+                  cancelText="No"
                 >
-                  {products.map(product => (
-                    <Option key={product.id} value={product.id}>
-                      {`${product.name} - ₹${product.price}`}
-                    </Option>
-                  ))}
-                </Select>
-              </Col>
-              <Col span={6}>
-                <InputNumber
-                  min={1}
-                  value={quantity}
-                  onChange={(val) => setQuantity(val)}
-                  style={{ width: '100%' }}
-                  placeholder="Quantity"
-                />
-              </Col>
-              <Col span={8}>
-                <Button type="primary" onClick={handleAddProduct} block>
-                  Add Product
-                </Button>
-              </Col>
-            </Row>
-          </Card>
-
-          {/* Dynamic Product Addition */}
-          <Card title="Add New Product" style={{ marginBottom: 24 }}>
-            <Button 
-              type="dashed" 
-              icon={<PlusOutlined />} 
-              onClick={() => setShowProductModal(true)}
-              block
-            >
-              Add Custom Product
-            </Button>
-          </Card>
-
-          <Card title="Shopping Cart" style={{ marginBottom: 24 }}>
-            <Cart allowPriceEdit={true} />
-          </Card>
-
-          {/* Customer Section */}
-          <Card title="Customer Details">
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={18}>
-                <Select
-                  showSearch
-                  style={{ width: '100%' }}
-                  placeholder="Select Customer"
-                  value={selectedCustomer?.id}
-                  onChange={(value) => {
-                    const customer = customers.find(c => c.id === value);
-                    setSelectedCustomer(customer || null);
-                  }}
-                  filterOption={(input, option) =>
-                    option.children.toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {customers.map(customer => (
-                    <Option key={customer.id} value={customer.id}>
-                      {`${customer.name}${customer.phone ? ` (${customer.phone})` : ''}`}
-                    </Option>
-                  ))}
-                </Select>
-              </Col>
-              <Col span={6}>
+                  <Button size="small" danger>Clear Cart</Button>
+                </Popconfirm>
+              )
+            }
+          >
+            <Tabs defaultActiveKey="1" size="small">
+              <TabPane tab="Existing Products" key="1">
+                <Row gutter={8} style={{ marginBottom: 12 }}>
+                  <Col span={12}>
+                    <Select
+                      showSearch
+                      style={{ width: '100%' }}
+                      placeholder="Select Product"
+                      value={selectedProduct?.id}
+                      onChange={(value) => {
+                        const product = products.find(p => p.id === value);
+                        setSelectedProduct(product || null);
+                      }}
+                      filterOption={(input, option) =>
+                        option.children.toLowerCase().includes(input.toLowerCase())
+                      }
+                      size="small"
+                    >
+                      {products.map(product => (
+                        <Option key={product.id} value={product.id}>
+                          {`${product.name} - ₹${product.price}`}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={6}>
+                    <InputNumber
+                      min={1}
+                      value={quantity}
+                      onChange={(val) => setQuantity(val)}
+                      style={{ width: '100%' }}
+                      placeholder="Qty"
+                      size="small"
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <Button 
+                      type="primary" 
+                      onClick={handleAddProduct} 
+                      block 
+                      size="small"
+                      icon={<PlusOutlined />}
+                    >
+                      Add
+                    </Button>
+                  </Col>
+                </Row>
+              </TabPane>
+              
+              <TabPane tab="Custom Product" key="2">
                 <Button 
-                  icon={<UserAddOutlined />} 
-                  onClick={() => setShowCustomerModal(true)}
+                  type="dashed" 
+                  icon={<PlusOutlined />} 
+                  onClick={() => setShowProductModal(true)}
                   block
+                  size="small"
                 >
-                  Add Customer
+                  Add Custom Product
                 </Button>
-              </Col>
-            </Row>
-            <Row>
-              <Col span={24}>
-                <Select
-                  value={paymentMethod}
-                  onChange={setPaymentMethod}
-                  style={{ width: '100%' }}
-                >
-                  {paymentMethods.map(method => (
-                    <Option key={method} value={method}>
-                      {method}
-                    </Option>
-                  ))}
-                </Select>
-              </Col>
-            </Row>
+              </TabPane>
+            </Tabs>
+
+            <Divider style={{ margin: '12px 0' }} />
+
+            {/* Cart Table */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <Title level={5} style={{ margin: '0 0 8px 0' }}>
+                Shopping Cart ({totals.itemCount} items, {totals.totalQuantity} qty)
+              </Title>
+              
+              {cart.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+                  <ShoppingCartOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                  <div>No items in cart</div>
+                  <div style={{ fontSize: '12px' }}>Add products to get started</div>
+                </div>
+              ) : (
+                <Table
+                  columns={cartColumns}
+                  dataSource={cart}
+                  rowKey={(item) => item.product.id}
+                  pagination={false}
+                  size="small"
+                  scroll={{ y: 200 }}
+                  style={{ fontSize: '12px' }}
+                />
+              )}
+            </div>
           </Card>
         </Col>
 
-        <Col xs={24} md={8}>
-          <Card title="Order Summary" style={{ position: 'sticky', top: 20 }}>
-            <Row justify="space-between">
-              <Text>Subtotal:</Text>
-              <Text>₹{totals.subtotal.toFixed(2)}</Text>
-            </Row>
+        {/* Right Panel - Customer & Checkout */}
+        <Col xs={24} lg={10} style={{ height: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
             
-            {totals.totalDiscount > 0 && (
-              <>
-                <Row justify="space-between">
-                  <Text>Discount ({totals.discountPercentage.toFixed(1)}%):</Text>
-                  <Text style={{ color: '#52c41a' }}>-₹{totals.totalDiscount.toFixed(2)}</Text>
-                </Row>
-              </>
-            )}
-            
-            <Divider />
-            
-            <Row justify="space-between">
-              <Text strong>Total:</Text>
-              <Text strong>₹{totals.finalTotal.toFixed(2)}</Text>
-            </Row>
-            
-            <Button
-              type="primary"
-              size="large"
-              onClick={handleSubmit}
-              loading={loading}
-              block
-              style={{ marginTop: 20 }}
-              disabled={cart.length === 0}
+            {/* Customer Selection */}
+            <Card 
+              title="Customer Selection" 
+              size="small"
+              bodyStyle={{ padding: '12px' }}
             >
-              Generate Invoice
-            </Button>
-          </Card>
+              <Row gutter={8}>
+                <Col span={18}>
+                  <Select
+                    showSearch
+                    style={{ width: '100%' }}
+                    placeholder="Select Customer"
+                    value={selectedCustomer?.id}
+                    onChange={(value) => {
+                      const customer = customers.find(c => c.id === value);
+                      setSelectedCustomer(customer || null);
+                    }}
+                    filterOption={(input, option) =>
+                      option.children.toLowerCase().includes(input.toLowerCase())
+                    }
+                    size="small"
+                  >
+                    {customers.map(customer => (
+                      <Option key={customer.id} value={customer.id}>
+                        {`${customer.name}${customer.phone ? ` (${customer.phone})` : ''}`}
+                      </Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={6}>
+                  <Button 
+                    icon={<UserAddOutlined />} 
+                    onClick={() => setShowCustomerModal(true)}
+                    block
+                    size="small"
+                  >
+                    Add
+                  </Button>
+                </Col>
+              </Row>
+            </Card>
+
+            {/* Order Summary */}
+            <Card 
+              title={
+                <Space>
+                  <CalculatorOutlined />
+                  <span>Order Summary</span>
+                </Space>
+              }
+              size="small"
+              style={{ flex: 1 }}
+              bodyStyle={{ padding: '12px' }}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <Row gutter={8} style={{ marginBottom: 8 }}>
+                  <Col span={12}>
+                    <Statistic 
+                      title="Items" 
+                      value={totals.itemCount} 
+                      valueStyle={{ fontSize: 16 }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic 
+                      title="Quantity" 
+                      value={totals.totalQuantity} 
+                      valueStyle={{ fontSize: 16 }}
+                    />
+                  </Col>
+                </Row>
+
+                <Row justify="space-between" style={{ marginBottom: 8 }}>
+                  <Text>Subtotal:</Text>
+                  <Text>₹{totals.subtotal.toFixed(2)}</Text>
+                </Row>
+                
+                {totals.totalDiscount !== 0 && (
+                  <Row justify="space-between" style={{ marginBottom: 8 }}>
+                    <Text>
+                      {totals.totalDiscount > 0 ? (
+                        <span style={{ color: '#52c41a' }}>💰 Discount:</span>
+                      ) : (
+                        <span style={{ color: '#faad14' }}>➕ Extra:</span>
+                      )}
+                    </Text>
+                    <Text style={{ 
+                      color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14', 
+                      fontWeight: 'bold' 
+                    }}>
+                      {totals.totalDiscount > 0 ? '-' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
+                    </Text>
+                  </Row>
+                )}
+                
+                <Divider style={{ margin: '8px 0' }} />
+                
+                <Row justify="space-between" style={{ marginBottom: 16 }}>
+                  <Text strong style={{ fontSize: 16 }}>Total:</Text>
+                  <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
+                    ₹{totals.finalTotal.toFixed(2)}
+                  </Text>
+                </Row>
+
+                {totals.totalDiscount > 0 && (
+                  <div style={{ 
+                    backgroundColor: '#f6ffed', 
+                    border: '1px solid #b7eb8f', 
+                    borderRadius: 4, 
+                    padding: 8, 
+                    marginBottom: 12,
+                    textAlign: 'center'
+                  }}>
+                    <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                      🎉 Customer saves ₹{totals.totalDiscount.toFixed(2)} today!
+                    </Text>
+                  </div>
+                )}
+              </div>
+
+              {selectedCustomer && (
+                <div style={{ 
+                  backgroundColor: '#f0f5ff', 
+                  border: '1px solid #adc6ff', 
+                  borderRadius: 4, 
+                  padding: 8, 
+                  marginBottom: 16,
+                  fontSize: '12px'
+                }}>
+                  <div><strong>Customer:</strong> {selectedCustomer.name}</div>
+                  {selectedCustomer.phone && (
+                    <div><strong>Phone:</strong> {selectedCustomer.phone}</div>
+                  )}
+                </div>
+              )}
+              
+              <Button
+                type="primary"
+                size="large"
+                onClick={handleSubmit}
+                block
+                disabled={cart.length === 0 || !selectedCustomer}
+                icon={<PrinterOutlined />}
+                style={{ height: 48, fontSize: 16 }}
+              >
+                Generate Invoice
+              </Button>
+            </Card>
+          </div>
         </Col>
       </Row>
 
-      {/* Dynamic Product Modal */}
+      {/* Error Alert */}
+      {error && (
+        <Alert 
+          message={error} 
+          type="error" 
+          showIcon 
+          closable
+          style={{ position: 'fixed', top: 80, right: 16, zIndex: 1000, maxWidth: 400 }}
+        />
+      )}
+
+      {/* Payment Confirmation Modal */}
+      <Modal
+        title={
+          <Space>
+            <PrinterOutlined />
+            <span>Confirm Payment & Generate Invoice</span>
+          </Space>
+        }
+        open={showPaymentModal}
+        onCancel={() => setShowPaymentModal(false)}
+        footer={null}
+        destroyOnClose
+        width={500}
+      >
+        <div>
+          {/* Order Summary */}
+          <Card size="small" style={{ marginBottom: 16, backgroundColor: '#fafafa' }}>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text strong>Customer:</Text>
+              <Text>{selectedCustomer?.name}</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text strong>Items:</Text>
+              <Text>{totals.itemCount} items ({totals.totalQuantity} qty)</Text>
+            </Row>
+            <Row justify="space-between" style={{ marginBottom: 8 }}>
+              <Text strong>Subtotal:</Text>
+              <Text>₹{totals.subtotal.toFixed(2)}</Text>
+            </Row>
+            {totals.totalDiscount !== 0 && (
+              <Row justify="space-between" style={{ marginBottom: 8 }}>
+                <Text strong style={{ color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14' }}>
+                  {totals.totalDiscount > 0 ? 'Discount:' : 'Extra:'}
+                </Text>
+                <Text strong style={{ color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14' }}>
+                  {totals.totalDiscount > 0 ? '-' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
+                </Text>
+              </Row>
+            )}
+            <Divider style={{ margin: '8px 0' }} />
+            <Row justify="space-between">
+              <Text strong style={{ fontSize: 16 }}>Final Total:</Text>
+              <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
+                ₹{totals.finalTotal.toFixed(2)}
+              </Text>
+            </Row>
+          </Card>
+
+          {/* Payment Method Selection */}
+          <div style={{ marginBottom: 20 }}>
+            <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 12 }}>
+              Select Payment Method:
+            </Text>
+            <Row gutter={8}>
+              {paymentMethods.map(method => (
+                <Col span={6} key={method}>
+                  <Button
+                    type={finalPaymentMethod === method ? 'primary' : 'default'}
+                    onClick={() => setFinalPaymentMethod(method)}
+                    block
+                    style={{ 
+                      height: 50,
+                      fontSize: 14,
+                      fontWeight: finalPaymentMethod === method ? 'bold' : 'normal'
+                    }}
+                  >
+                    {method}
+                  </Button>
+                </Col>
+              ))}
+            </Row>
+          </div>
+
+          {/* Confirmation Message */}
+          <div style={{ 
+            backgroundColor: finalPaymentMethod === 'Cash' ? '#fff7e6' : '#e6f7ff', 
+            border: `1px solid ${finalPaymentMethod === 'Cash' ? '#ffd591' : '#91d5ff'}`, 
+            borderRadius: 4, 
+            padding: 12, 
+            marginBottom: 16,
+            textAlign: 'center'
+          }}>
+            <Text strong>
+              Customer will pay ₹{totals.finalTotal.toFixed(2)} via {finalPaymentMethod}
+            </Text>
+            {finalPaymentMethod === 'Cash' && (
+              <div style={{ marginTop: 4, fontSize: 12, color: '#666' }}>
+                Make sure you have sufficient change ready
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ textAlign: 'right' }}>
+            <Space>
+              <Button 
+                onClick={() => setShowPaymentModal(false)}
+                size="large"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="primary" 
+                onClick={confirmAndGenerateInvoice}
+                loading={loading}
+                size="large"
+                icon={<PrinterOutlined />}
+                style={{ minWidth: 150 }}
+              >
+                Confirm & Print Invoice
+              </Button>
+            </Space>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Simple Price Edit Modal */}
+      <Modal
+        title={
+          <Space>
+            <DollarOutlined />
+            <span>Edit Price</span>
+          </Space>
+        }
+        open={showPriceModal}
+        onCancel={() => setShowPriceModal(false)}
+        footer={null}
+        destroyOnClose
+        width={400}
+      >
+        {editingItem && (
+          <div>
+            <Card size="small" style={{ marginBottom: 16, backgroundColor: '#fafafa' }}>
+              <Row justify="space-between">
+                <Col>
+                  <Text strong>{editingItem.product.name}</Text>
+                  <br />
+                  <Text type="secondary">Quantity: {editingItem.quantity}</Text>
+                </Col>
+                <Col style={{ textAlign: 'right' }}>
+                  <Text type="secondary">Original Price:</Text>
+                  <br />
+                  <Text strong>₹{editingItem.originalPrice}</Text>
+                </Col>
+              </Row>
+            </Card>
+
+            <div style={{ marginBottom: 16 }}>
+              <Text strong>Enter Final Price:</Text>
+              <InputNumber
+                value={newPrice}
+                onChange={setNewPrice}
+                style={{ width: '100%', marginTop: 8 }}
+                size="large"
+                min={0}
+                step={0.01}
+                prefix="₹"
+                placeholder="Enter final negotiated price"
+              />
+            </div>
+
+            <Card size="small" style={{ backgroundColor: '#f0f5ff', marginBottom: 16 }}>
+              <Row justify="space-between">
+                <Text>Per Item:</Text>
+                <Text strong>₹{newPrice} × {editingItem.quantity}</Text>
+              </Row>
+              <Row justify="space-between">
+                <Text>Total:</Text>
+                <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+                  ₹{(newPrice * editingItem.quantity).toFixed(2)}
+                </Text>
+              </Row>
+              <Row justify="space-between">
+                <Text style={{ color: newPrice < editingItem.originalPrice ? '#52c41a' : '#faad14' }}>
+                  {newPrice < editingItem.originalPrice ? 'Customer Saves:' : 'Extra Amount:'}
+                </Text>
+                <Text strong style={{ color: newPrice < editingItem.originalPrice ? '#52c41a' : '#faad14' }}>
+                  ₹{Math.abs((editingItem.originalPrice - newPrice) * editingItem.quantity).toFixed(2)}
+                </Text>
+              </Row>
+            </Card>
+
+            <div style={{ textAlign: 'right' }}>
+              <Space>
+                <Button onClick={() => setShowPriceModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="primary" onClick={applyNewPrice}>
+                  Update Price
+                </Button>
+              </Space>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Custom Product Modal */}
       <Modal
         title="Add Custom Product"
         open={showProductModal}
         onCancel={() => setShowProductModal(false)}
         footer={null}
         destroyOnClose
+        width={400}
       >
         <Form form={productForm} layout="vertical" onFinish={handleAddDynamicProduct}>
           <Form.Item
             name="name"
             label="Product Name"
-            rules={[{ required: true, message: 'Please enter product name' }]}
+            rules={[{ required: true, message: 'Enter product name' }]}
           >
             <Input placeholder="Enter product name" />
           </Form.Item>
@@ -371,7 +903,7 @@ const Billing = () => {
           <Form.Item
             name="price"
             label="Price"
-            rules={[{ required: true, message: 'Please enter price' }]}
+            rules={[{ required: true, message: 'Enter price' }]}
           >
             <InputNumber
               style={{ width: '100%' }}
@@ -385,7 +917,7 @@ const Billing = () => {
           <Form.Item
             name="quantity"
             label="Quantity"
-            rules={[{ required: true, message: 'Please enter quantity' }]}
+            rules={[{ required: true, message: 'Enter quantity' }]}
             initialValue={1}
           >
             <InputNumber
@@ -408,19 +940,20 @@ const Billing = () => {
         </Form>
       </Modal>
 
-      {/* Dynamic Customer Modal */}
+      {/* Add Customer Modal */}
       <Modal
         title="Add New Customer"
         open={showCustomerModal}
         onCancel={() => setShowCustomerModal(false)}
         footer={null}
         destroyOnClose
+        width={400}
       >
         <Form form={customerForm} layout="vertical" onFinish={handleAddDynamicCustomer}>
           <Form.Item
             name="name"
             label="Customer Name"
-            rules={[{ required: true, message: 'Please enter customer name' }]}
+            rules={[{ required: true, message: 'Enter customer name' }]}
           >
             <Input placeholder="Enter customer name" />
           </Form.Item>
