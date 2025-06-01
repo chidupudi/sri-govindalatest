@@ -1,223 +1,352 @@
-// src/components/customer/CustomerForm.js - Updated to make phone optional
-import React, { useEffect } from 'react';
+// src/components/customer/CustomerForm.js - Enhanced version
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Modal, Form, Input, Button, Row, Col, message } from 'antd';
-import * as Yup from 'yup';
-import { useFormik } from 'formik';
+import { 
+  Modal, 
+  Form, 
+  Input, 
+  Button, 
+  Row, 
+  Col, 
+  message, 
+  Card,
+  Divider,
+  Typography 
+} from 'antd';
+import { 
+  UserOutlined, 
+  PhoneOutlined, 
+  MailOutlined, 
+  HomeOutlined,
+  NumberOutlined,
+  SaveOutlined,
+  CloseOutlined
+} from '@ant-design/icons';
 import { createCustomer, updateCustomer } from '../../features/customer/customerSlice';
 
-const validationSchema = Yup.object({
-  name: Yup.string().required('Customer name is required'),
-  email: Yup.string().email('Invalid email address'),
-  phone: Yup.string(), // Made optional
-  address: Yup.object({
-    street: Yup.string(),
-    city: Yup.string(),
-    state: Yup.string(),
-    pincode: Yup.string(),
-  }),
-  gstNumber: Yup.string(),
-});
+const { Title, Text } = Typography;
 
 const CustomerForm = ({ open, onClose, onSuccess }) => {
   const dispatch = useDispatch();
   const { selectedCustomer, loading } = useSelector(state => state.customers);
-
-  const formik = useFormik({
-    initialValues: {
-      name: '',
-      email: '',
-      phone: '',
-      address: {
-        street: '',
-        city: '',
-        state: '',
-        pincode: ''
-      },
-      gstNumber: ''
-    },
-    validationSchema,
-    onSubmit: async (values) => {
-      try {
-        if (selectedCustomer) {
-          const result = await dispatch(updateCustomer({ id: selectedCustomer.id, customerData: values }));
-          if (updateCustomer.fulfilled.match(result)) {
-            message.success('Customer updated successfully!');
-            onSuccess();
-          }
-        } else {
-          const result = await dispatch(createCustomer(values));
-          if (createCustomer.fulfilled.match(result)) {
-            message.success('Customer added successfully!');
-            onSuccess();
-          }
-        }
-      } catch (error) {
-        message.error('Error saving customer. Please try again.');
-        console.error('Error saving customer:', error);
-      }
-    }
-  });
+  const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (selectedCustomer) {
-      formik.setValues({
+    if (open && selectedCustomer) {
+      // Editing existing customer
+      form.setFieldsValue({
         name: selectedCustomer.name || '',
         email: selectedCustomer.email || '',
         phone: selectedCustomer.phone || '',
-        address: selectedCustomer.address || {
-          street: '',
-          city: '',
-          state: '',
-          pincode: ''
-        },
+        street: selectedCustomer.address?.street || '',
+        city: selectedCustomer.address?.city || '',
+        state: selectedCustomer.address?.state || '',
+        pincode: selectedCustomer.address?.pincode || '',
         gstNumber: selectedCustomer.gstNumber || ''
       });
-    } else {
-      formik.resetForm();
+    } else if (open) {
+      // Adding new customer
+      form.resetFields();
     }
-  }, [selectedCustomer]);
+  }, [open, selectedCustomer, form]);
+
+  const handleSubmit = async (values) => {
+    if (submitting) return;
+    
+    setSubmitting(true);
+    
+    try {
+      console.log('Submitting customer:', values);
+      
+      // Validate required fields
+      if (!values.name || values.name.trim() === '') {
+        message.error('Customer name is required');
+        setSubmitting(false);
+        return;
+      }
+
+      const customerData = {
+        name: values.name.trim(),
+        email: values.email?.trim() || '',
+        phone: values.phone?.trim() || '',
+        address: {
+          street: values.street?.trim() || '',
+          city: values.city?.trim() || '',
+          state: values.state?.trim() || '',
+          pincode: values.pincode?.trim() || ''
+        },
+        gstNumber: values.gstNumber?.trim() || ''
+      };
+
+      let result;
+      if (selectedCustomer) {
+        result = await dispatch(updateCustomer({ 
+          id: selectedCustomer.id, 
+          customerData 
+        }));
+        
+        if (updateCustomer.fulfilled.match(result)) {
+          message.success('Customer updated successfully!');
+          onSuccess();
+        } else {
+          throw new Error(result.payload || 'Failed to update customer');
+        }
+      } else {
+        result = await dispatch(createCustomer(customerData));
+        
+        if (createCustomer.fulfilled.match(result)) {
+          message.success('Customer created successfully!');
+          onSuccess();
+        } else {
+          throw new Error(result.payload || 'Failed to create customer');
+        }
+      }
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      message.error('Error saving customer: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleClose = () => {
-    formik.resetForm();
-    onClose();
+    if (!submitting && !loading) {
+      form.resetFields();
+      onClose();
+    }
   };
 
   return (
     <Modal
-      title={selectedCustomer ? 'Edit Customer' : 'Add Customer'}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <UserOutlined style={{ color: '#1890ff' }} />
+          <span>{selectedCustomer ? 'Edit Customer' : 'Add New Customer'}</span>
+        </div>
+      }
       open={open}
       onCancel={handleClose}
       footer={null}
       width={700}
       destroyOnClose
+      maskClosable={false}
+      styles={{
+        header: {
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          borderRadius: '8px 8px 0 0'
+        }
+      }}
     >
-      <Form layout="vertical" onFinish={formik.handleSubmit}>
-        <Row gutter={16}>
-          <Col span={24}>
-            <Form.Item
-              label="Customer Name"
-              validateStatus={formik.touched.name && formik.errors.name ? 'error' : ''}
-              help={formik.touched.name && formik.errors.name}
-              required
-            >
-              <Input
-                name="name"
-                value={formik.values.name}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter customer name"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={12}>
-            <Form.Item
-              label="Phone Number"
-              validateStatus={formik.touched.phone && formik.errors.phone ? 'error' : ''}
-              help={formik.touched.phone && formik.errors.phone}
-            >
-              <Input
-                name="phone"
-                value={formik.values.phone}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter phone number (optional)"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={12}>
-            <Form.Item
-              label="Email Address"
-              validateStatus={formik.touched.email && formik.errors.email ? 'error' : ''}
-              help={formik.touched.email && formik.errors.email}
-            >
-              <Input
-                name="email"
-                type="email"
-                value={formik.values.email}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter email address (optional)"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={24}>
-            <Form.Item label="Street Address">
-              <Input
-                name="address.street"
-                value={formik.values.address.street}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter street address"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={8}>
-            <Form.Item label="City">
-              <Input
-                name="address.city"
-                value={formik.values.address.city}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter city"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={8}>
-            <Form.Item label="State">
-              <Input
-                name="address.state"
-                value={formik.values.address.state}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter state"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={8}>
-            <Form.Item label="PIN Code">
-              <Input
-                name="address.pincode"
-                value={formik.values.address.pincode}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter PIN code"
-              />
-            </Form.Item>
-          </Col>
-          
-          <Col span={24}>
-            <Form.Item label="GST Number">
-              <Input
-                name="gstNumber"
-                value={formik.values.gstNumber}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="Enter GST number (optional)"
-              />
-            </Form.Item>
-          </Col>
-        </Row>
-        
-        <Form.Item style={{ textAlign: 'right', marginTop: 24 }}>
-          <Button onClick={handleClose} disabled={loading} style={{ marginRight: 8 }}>
-            Cancel
-          </Button>
-          <Button 
-            type="primary" 
-            htmlType="submit"
-            loading={loading}
+      <div style={{ padding: '16px 0' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          preserve={false}
+        >
+          {/* Basic Information */}
+          <Card 
+            size="small" 
+            title={
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                Basic Information
+              </span>
+            }
+            style={{ marginBottom: 16 }}
           >
-            {selectedCustomer ? 'Update Customer' : 'Add Customer'}
-          </Button>
-        </Form.Item>
-      </Form>
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="Customer Name"
+                  name="name"
+                  rules={[
+                    { required: true, message: 'Customer name is required' },
+                    { min: 2, message: 'Name must be at least 2 characters' },
+                    { max: 100, message: 'Name cannot exceed 100 characters' }
+                  ]}
+                >
+                  <Input
+                    prefix={<UserOutlined style={{ color: '#1890ff' }} />}
+                    placeholder="Enter customer name"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={12}>
+                <Form.Item
+                  label="Phone Number"
+                  name="phone"
+                  rules={[
+                    { pattern: /^[6-9]\d{9}$/, message: 'Enter valid 10-digit phone number' }
+                  ]}
+                >
+                  <Input
+                    prefix={<PhoneOutlined style={{ color: '#52c41a' }} />}
+                    placeholder="Enter phone number (optional)"
+                    size="large"
+                    maxLength={10}
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={12}>
+                <Form.Item
+                  label="Email Address"
+                  name="email"
+                  rules={[
+                    { type: 'email', message: 'Enter valid email address' }
+                  ]}
+                >
+                  <Input
+                    prefix={<MailOutlined style={{ color: '#fa8c16' }} />}
+                    placeholder="Enter email address (optional)"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Address Information */}
+          <Card 
+            size="small" 
+            title={
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                Address Information
+              </span>
+            }
+            style={{ marginBottom: 16 }}
+          >
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="Street Address"
+                  name="street"
+                >
+                  <Input
+                    prefix={<HomeOutlined style={{ color: '#722ed1' }} />}
+                    placeholder="Enter street address (optional)"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={8}>
+                <Form.Item
+                  label="City"
+                  name="city"
+                >
+                  <Input
+                    placeholder="Enter city"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={8}>
+                <Form.Item
+                  label="State"
+                  name="state"
+                >
+                  <Input
+                    placeholder="Enter state"
+                    size="large"
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col span={8}>
+                <Form.Item
+                  label="PIN Code"
+                  name="pincode"
+                  rules={[
+                    { pattern: /^\d{6}$/, message: 'PIN code must be 6 digits' }
+                  ]}
+                >
+                  <Input
+                    placeholder="Enter PIN code"
+                    size="large"
+                    maxLength={6}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Business Information */}
+          <Card 
+            size="small" 
+            title={
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                Business Information
+              </span>
+            }
+            style={{ marginBottom: 24 }}
+          >
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  label="GST Number"
+                  name="gstNumber"
+                  rules={[
+                    { 
+                      pattern: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 
+                      message: 'Enter valid GST number (15 characters)' 
+                    }
+                  ]}
+                >
+                  <Input
+                    prefix={<NumberOutlined style={{ color: '#13c2c2' }} />}
+                    placeholder="Enter GST number (optional)"
+                    size="large"
+                    maxLength={15}
+                    style={{ textTransform: 'uppercase' }}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase();
+                      form.setFieldsValue({ gstNumber: value });
+                    }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Action Buttons */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            gap: 12,
+            paddingTop: 16,
+            borderTop: '1px solid #f0f0f0'
+          }}>
+            <Button 
+              onClick={handleClose} 
+              disabled={submitting || loading}
+              size="large"
+              icon={<CloseOutlined />}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={submitting || loading}
+              size="large"
+              icon={<SaveOutlined />}
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                minWidth: 140
+              }}
+            >
+              {selectedCustomer ? 'Update Customer' : 'Add Customer'}
+            </Button>
+          </div>
+        </Form>
+      </div>
     </Modal>
   );
 };
