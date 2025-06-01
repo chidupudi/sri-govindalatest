@@ -1,4 +1,4 @@
-// src/components/billing/Billing.js - Final version with single payment confirmation
+// src/components/billing/Billing.js - Business perspective version
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -33,7 +33,8 @@ import {
   CloseOutlined,
   CalculatorOutlined,
   PrinterOutlined,
-  DollarOutlined
+  DollarOutlined,
+  GiftOutlined
 } from '@ant-design/icons';
 import { 
   createOrder, 
@@ -174,7 +175,7 @@ const Billing = () => {
     message.success('Item removed from cart');
   };
 
-  // Simple price negotiation
+  // Price negotiation
   const openPriceEdit = (item) => {
     setEditingItem(item);
     setNewPrice(item.currentPrice);
@@ -192,11 +193,11 @@ const Billing = () => {
       newPrice: newPrice 
     }));
     
-    const savings = editingItem.originalPrice - newPrice;
-    if (savings > 0) {
-      message.success(`Price updated! Customer saves ₹${savings.toFixed(2)}`);
-    } else if (savings < 0) {
-      message.success(`Price updated! Added ₹${Math.abs(savings).toFixed(2)}`);
+    const difference = editingItem.originalPrice - newPrice;
+    if (difference > 0) {
+      message.success(`Price reduced! Giving ₹${difference.toFixed(2)} discount to customer`);
+    } else if (difference < 0) {
+      message.success(`Price increased by ₹${Math.abs(difference).toFixed(2)}`);
     } else {
       message.success('Price updated!');
     }
@@ -235,7 +236,6 @@ const Billing = () => {
       return;
     }
 
-    // Set default payment method and show confirmation
     setFinalPaymentMethod('Cash');
     setShowPaymentModal(true);
   };
@@ -337,7 +337,7 @@ const Billing = () => {
                 icon={<EditOutlined />}
                 onClick={() => openPriceEdit(record)}
                 style={{ padding: 0, minWidth: 'auto' }}
-                title="Change Price"
+                title="Negotiate Price"
               />
             </div>
           </div>
@@ -369,7 +369,7 @@ const Billing = () => {
             </Text>
             {hasDiscount && (
               <div style={{ fontSize: '9px', color: '#52c41a' }}>
-                {originalTotal > itemTotal ? 'Save' : 'Extra'} ₹{Math.abs(originalTotal - itemTotal).toFixed(2)}
+                <GiftOutlined /> ₹{Math.abs(originalTotal - itemTotal).toFixed(2)} off
               </div>
             )}
           </div>
@@ -565,7 +565,7 @@ const Billing = () => {
               </Row>
             </Card>
 
-            {/* Order Summary */}
+            {/* Order Summary - Business Perspective */}
             <Card 
               title={
                 <Space>
@@ -596,7 +596,7 @@ const Billing = () => {
                 </Row>
 
                 <Row justify="space-between" style={{ marginBottom: 8 }}>
-                  <Text>Subtotal:</Text>
+                  <Text>List Price:</Text>
                   <Text>₹{totals.subtotal.toFixed(2)}</Text>
                 </Row>
                 
@@ -604,16 +604,16 @@ const Billing = () => {
                   <Row justify="space-between" style={{ marginBottom: 8 }}>
                     <Text>
                       {totals.totalDiscount > 0 ? (
-                        <span style={{ color: '#52c41a' }}>💰 Discount:</span>
+                        <span style={{ color: '#fa8c16' }}>💝 Discount Given:</span>
                       ) : (
-                        <span style={{ color: '#faad14' }}>➕ Extra:</span>
+                        <span style={{ color: '#52c41a' }}>📈 Premium Added:</span>
                       )}
                     </Text>
                     <Text style={{ 
-                      color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14', 
+                      color: totals.totalDiscount > 0 ? '#fa8c16' : '#52c41a', 
                       fontWeight: 'bold' 
                     }}>
-                      {totals.totalDiscount > 0 ? '-' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
+                      {totals.totalDiscount > 0 ? '' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
                     </Text>
                   </Row>
                 )}
@@ -621,7 +621,7 @@ const Billing = () => {
                 <Divider style={{ margin: '8px 0' }} />
                 
                 <Row justify="space-between" style={{ marginBottom: 16 }}>
-                  <Text strong style={{ fontSize: 16 }}>Total:</Text>
+                  <Text strong style={{ fontSize: 16 }}>Selling Price:</Text>
                   <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
                     ₹{totals.finalTotal.toFixed(2)}
                   </Text>
@@ -629,15 +629,15 @@ const Billing = () => {
 
                 {totals.totalDiscount > 0 && (
                   <div style={{ 
-                    backgroundColor: '#f6ffed', 
-                    border: '1px solid #b7eb8f', 
+                    backgroundColor: '#fff7e6', 
+                    border: '1px solid #ffd591', 
                     borderRadius: 4, 
                     padding: 8, 
                     marginBottom: 12,
                     textAlign: 'center'
                   }}>
-                    <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>
-                      🎉 Customer saves ₹{totals.totalDiscount.toFixed(2)} today!
+                    <Text style={{ color: '#fa8c16', fontWeight: 'bold' }}>
+                      🎁 Giving ₹{totals.totalDiscount.toFixed(2)} discount to customer
                     </Text>
                   </div>
                 )}
@@ -712,22 +712,22 @@ const Billing = () => {
               <Text>{totals.itemCount} items ({totals.totalQuantity} qty)</Text>
             </Row>
             <Row justify="space-between" style={{ marginBottom: 8 }}>
-              <Text strong>Subtotal:</Text>
+              <Text strong>List Price:</Text>
               <Text>₹{totals.subtotal.toFixed(2)}</Text>
             </Row>
             {totals.totalDiscount !== 0 && (
               <Row justify="space-between" style={{ marginBottom: 8 }}>
-                <Text strong style={{ color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14' }}>
-                  {totals.totalDiscount > 0 ? 'Discount:' : 'Extra:'}
+                <Text strong style={{ color: totals.totalDiscount > 0 ? '#fa8c16' : '#52c41a' }}>
+                  {totals.totalDiscount > 0 ? 'Discount Given:' : 'Premium Added:'}
                 </Text>
-                <Text strong style={{ color: totals.totalDiscount > 0 ? '#52c41a' : '#faad14' }}>
-                  {totals.totalDiscount > 0 ? '-' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
+                <Text strong style={{ color: totals.totalDiscount > 0 ? '#fa8c16' : '#52c41a' }}>
+                  {totals.totalDiscount > 0 ? '' : '+'}₹{Math.abs(totals.totalDiscount).toFixed(2)}
                 </Text>
               </Row>
             )}
             <Divider style={{ margin: '8px 0' }} />
             <Row justify="space-between">
-              <Text strong style={{ fontSize: 16 }}>Final Total:</Text>
+              <Text strong style={{ fontSize: 16 }}>Final Amount:</Text>
               <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
                 ₹{totals.finalTotal.toFixed(2)}
               </Text>
@@ -802,12 +802,12 @@ const Billing = () => {
         </div>
       </Modal>
 
-      {/* Simple Price Edit Modal */}
+      {/* Price Edit Modal */}
       <Modal
         title={
           <Space>
             <DollarOutlined />
-            <span>Edit Price</span>
+            <span>Negotiate Price</span>
           </Space>
         }
         open={showPriceModal}
@@ -826,7 +826,7 @@ const Billing = () => {
                   <Text type="secondary">Quantity: {editingItem.quantity}</Text>
                 </Col>
                 <Col style={{ textAlign: 'right' }}>
-                  <Text type="secondary">Original Price:</Text>
+                  <Text type="secondary">List Price:</Text>
                   <br />
                   <Text strong>₹{editingItem.originalPrice}</Text>
                 </Col>
@@ -834,7 +834,7 @@ const Billing = () => {
             </Card>
 
             <div style={{ marginBottom: 16 }}>
-              <Text strong>Enter Final Price:</Text>
+              <Text strong>Enter Final Selling Price:</Text>
               <InputNumber
                 value={newPrice}
                 onChange={setNewPrice}
@@ -843,7 +843,7 @@ const Billing = () => {
                 min={0}
                 step={0.01}
                 prefix="₹"
-                placeholder="Enter final negotiated price"
+                placeholder="Enter final selling price"
               />
             </div>
 
@@ -859,10 +859,10 @@ const Billing = () => {
                 </Text>
               </Row>
               <Row justify="space-between">
-                <Text style={{ color: newPrice < editingItem.originalPrice ? '#52c41a' : '#faad14' }}>
-                  {newPrice < editingItem.originalPrice ? 'Customer Saves:' : 'Extra Amount:'}
+                <Text style={{ color: newPrice < editingItem.originalPrice ? '#fa8c16' : '#52c41a' }}>
+                  {newPrice < editingItem.originalPrice ? 'Discount Given:' : 'Premium Added:'}
                 </Text>
-                <Text strong style={{ color: newPrice < editingItem.originalPrice ? '#52c41a' : '#faad14' }}>
+                <Text strong style={{ color: newPrice < editingItem.originalPrice ? '#fa8c16' : '#52c41a' }}>
                   ₹{Math.abs((editingItem.originalPrice - newPrice) * editingItem.quantity).toFixed(2)}
                 </Text>
               </Row>

@@ -1,4 +1,4 @@
-// src/components/dashboard/Dashboard.js
+// src/components/dashboard/Dashboard.js - Improved with profit calculations and filters
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -11,7 +11,12 @@ import {
   Table,
   Tag,
   Space,
-  Divider
+  Divider,
+  Button,
+  Tooltip,
+  Alert,
+  Select,
+  DatePicker
 } from 'antd';
 import {
   ArrowUpOutlined,
@@ -23,7 +28,10 @@ import {
   ExclamationOutlined,
   LineChartOutlined,
   PieChartOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  InfoCircleOutlined,
+  DollarOutlined,
+  TrophyOutlined
 } from '@ant-design/icons';
 import { 
   LineChart, 
@@ -31,8 +39,12 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
+  Tooltip as RechartsTooltip, 
   ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
   PieChart,
   Pie,
   Cell
@@ -42,29 +54,44 @@ import { fetchOrders } from '../../features/order/orderSlice';
 import { fetchProducts } from '../../features/products/productSlice';
 import { fetchCustomers } from '../../features/customer/customerSlice';
 import { fetchExpenses } from '../../features/expense/expenseSlice';
+import moment from 'moment';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
+const { RangePicker } = DatePicker;
 
-const StatCard = ({ title, value, icon, color, trend, trendValue }) => {
+const StatCard = ({ title, value, icon, color, trend, trendValue, prefix, suffix, warning }) => {
   const trendColor = trend === 'up' ? '#3f8600' : '#cf1322';
   
   return (
-    <Card>
-      <Space direction="horizontal" style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Statistic
-          title={title}
-          value={value}
-          prefix={icon}
-          valueStyle={{ color }}
-        />
+    <Card hoverable>
+      <Space direction="horizontal" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+        <div>
+          <Statistic
+            title={
+              <Space>
+                {title}
+                {warning && (
+                  <Tooltip title={warning}>
+                    <InfoCircleOutlined style={{ color: '#faad14' }} />
+                  </Tooltip>
+                )}
+              </Space>
+            }
+            value={value}
+            prefix={prefix || icon}
+            suffix={suffix}
+            valueStyle={{ color }}
+          />
+        </div>
         {trend && (
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {trend === 'up' ? (
-              <ArrowUpOutlined style={{ color: trendColor }} />
+              <ArrowUpOutlined style={{ color: trendColor, fontSize: '16px' }} />
             ) : (
-              <ArrowDownOutlined style={{ color: trendColor }} />
+              <ArrowDownOutlined style={{ color: trendColor, fontSize: '16px' }} />
             )}
-            <Text style={{ color: trendColor, marginLeft: 4 }}>
+            <Text style={{ color: trendColor, fontSize: '12px', fontWeight: 'bold' }}>
               {trendValue}
             </Text>
           </div>
@@ -82,6 +109,7 @@ const Dashboard = () => {
   const { items: customers, loading: customersLoading } = useSelector(state => state.customers);
   const { items: expenses, loading: expensesLoading } = useSelector(state => state.expenses);
 
+  const [dateFilter, setDateFilter] = useState('week'); // week, 2weeks, month
   const [dashboardData, setDashboardData] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -89,9 +117,13 @@ const Dashboard = () => {
     totalProducts: 0,
     lowStockProducts: 0,
     totalExpenses: 0,
+    totalProfit: 0,
+    profitMargin: 0,
+    costAnalysis: { withCost: 0, withoutCost: 0 },
     salesData: [],
     topProducts: [],
-    recentOrders: []
+    recentOrders: [],
+    profitData: []
   });
 
   useEffect(() => {
@@ -107,80 +139,186 @@ const Dashboard = () => {
     if (orders.length || products.length || customers.length || expenses.length) {
       calculateDashboardData();
     }
-  }, [orders, products, customers, expenses]);
+  }, [orders, products, customers, expenses, dateFilter]);
+
+  const getDateRange = () => {
+    const now = moment();
+    let startDate;
+    
+    switch (dateFilter) {
+      case 'week':
+        startDate = now.clone().subtract(7, 'days');
+        break;
+      case '2weeks':
+        startDate = now.clone().subtract(14, 'days');
+        break;
+      case 'month':
+        startDate = now.clone().subtract(30, 'days');
+        break;
+      default:
+        startDate = now.clone().subtract(7, 'days');
+    }
+    
+    return { startDate, endDate: now };
+  };
 
   const calculateDashboardData = () => {
-    // Calculate total sales
-    const completedOrders = orders.filter(order => order.status !== 'cancelled');
-    const totalSales = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const { startDate, endDate } = getDateRange();
     
-    // Calculate expenses for current month
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    const monthlyExpenses = expenses.filter(expense => {
-      const expenseDate = expense.date?.toDate ? expense.date.toDate() : new Date(expense.date);
-      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+    // Filter orders for the selected period
+    const filteredOrders = orders.filter(order => {
+      if (order.status === 'cancelled') return false;
+      const orderDate = moment(order.createdAt?.toDate?.() || order.createdAt);
+      return orderDate.isBetween(startDate, endDate, null, '[]');
     });
-    const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+
+    // Calculate total sales and orders
+    const totalSales = filteredOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalOrders = filteredOrders.length;
+    
+    // Calculate expenses for the same period
+    const filteredExpenses = expenses.filter(expense => {
+      const expenseDate = moment(expense.date?.toDate?.() || expense.date);
+      return expenseDate.isBetween(startDate, endDate, null, '[]');
+    });
+    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+
+    // Calculate cost analysis
+    const costAnalysis = analyzeCostPrices();
+    
+    // Calculate total cost of goods sold and profit
+    const totalCostOfGoods = calculateCostOfGoods(filteredOrders);
+    const grossProfit = totalSales - totalCostOfGoods;
+    const netProfit = grossProfit - totalExpenses;
+    const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
     // Low stock products (stock <= 10)
     const lowStockProducts = products.filter(product => product.stock <= 10).length;
 
-    // Sales data for chart (last 7 days)
-    const salesData = getLast7DaysSales();
+    // Sales data for chart
+    const salesData = generateSalesData(filteredOrders, startDate, endDate);
+    
+    // Profit data for chart
+    const profitData = generateProfitData(filteredOrders, filteredExpenses, startDate, endDate);
     
     // Top products by sales
-    const topProducts = getTopProducts();
+    const topProducts = getTopProducts(filteredOrders);
 
-    // Recent orders
-    const recentOrders = [...completedOrders]
+    // Recent orders (last 5)
+    const recentOrders = [...filteredOrders]
       .sort((a, b) => new Date(b.createdAt?.toDate?.() || b.createdAt) - new Date(a.createdAt?.toDate?.() || a.createdAt))
       .slice(0, 5);
 
     setDashboardData({
       totalSales,
-      totalOrders: completedOrders.length,
+      totalOrders,
       totalCustomers: customers.length,
       totalProducts: products.length,
       lowStockProducts,
       totalExpenses,
+      totalProfit: netProfit,
+      profitMargin,
+      costAnalysis,
       salesData,
       topProducts,
-      recentOrders
+      recentOrders,
+      profitData
     });
   };
 
-  const getLast7DaysSales = () => {
-    const last7Days = [];
-    const today = new Date();
+  const analyzeCostPrices = () => {
+    const withCost = products.filter(product => product.costPrice && product.costPrice > 0).length;
+    const withoutCost = products.filter(product => !product.costPrice || product.costPrice <= 0).length;
     
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      
-      const dayOrders = orders.filter(order => {
-        const orderDate = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-        return orderDate.toDateString() === date.toDateString() && order.status !== 'cancelled';
+    return { withCost, withoutCost, total: products.length };
+  };
+
+  const calculateCostOfGoods = (ordersList) => {
+    let totalCost = 0;
+    
+    ordersList.forEach(order => {
+      if (order.items) {
+        order.items.forEach(item => {
+          const product = products.find(p => p.id === item.product?.id || p.id === item.productId);
+          if (product && product.costPrice) {
+            totalCost += product.costPrice * item.quantity;
+          } else if (product) {
+            // If no cost price, estimate at 60% of selling price
+            totalCost += (item.price * 0.6) * item.quantity;
+          }
+        });
+      }
+    });
+    
+    return totalCost;
+  };
+
+  const generateSalesData = (ordersList, start, end) => {
+    const days = [];
+    const current = start.clone();
+    
+    while (current.isSameOrBefore(end, 'day')) {
+      const dayOrders = ordersList.filter(order => {
+        const orderDate = moment(order.createdAt?.toDate?.() || order.createdAt);
+        return orderDate.isSame(current, 'day');
       });
       
       const dayTotal = dayOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+      const dayCount = dayOrders.length;
       
-      last7Days.push({
-        date: dateStr,
+      days.push({
+        date: current.format('MMM DD'),
         sales: dayTotal,
-        orders: dayOrders.length
+        orders: dayCount,
+        fullDate: current.format('YYYY-MM-DD')
       });
+      
+      current.add(1, 'day');
     }
     
-    return last7Days;
+    return days;
   };
 
-  const getTopProducts = () => {
+  const generateProfitData = (ordersList, expensesList, start, end) => {
+    const days = [];
+    const current = start.clone();
+    
+    while (current.isSameOrBefore(end, 'day')) {
+      const dayOrders = ordersList.filter(order => {
+        const orderDate = moment(order.createdAt?.toDate?.() || order.createdAt);
+        return orderDate.isSame(current, 'day');
+      });
+      
+      const dayExpenses = expensesList.filter(expense => {
+        const expenseDate = moment(expense.date?.toDate?.() || expense.date);
+        return expenseDate.isSame(current, 'day');
+      });
+      
+      const dayRevenue = dayOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+      const dayCost = calculateCostOfGoods(dayOrders);
+      const dayExpenseTotal = dayExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+      const dayProfit = dayRevenue - dayCost - dayExpenseTotal;
+      
+      days.push({
+        date: current.format('MMM DD'),
+        revenue: dayRevenue,
+        cost: dayCost,
+        expenses: dayExpenseTotal,
+        profit: dayProfit,
+        fullDate: current.format('YYYY-MM-DD')
+      });
+      
+      current.add(1, 'day');
+    }
+    
+    return days;
+  };
+
+  const getTopProducts = (ordersList) => {
     const productSales = {};
     
-    orders.forEach(order => {
-      if (order.status !== 'cancelled' && order.items) {
+    ordersList.forEach(order => {
+      if (order.items) {
         order.items.forEach(item => {
           const productId = item.product?.id || item.productId;
           const productName = item.product?.name || 'Unknown Product';
@@ -223,7 +361,7 @@ const Dashboard = () => {
       title: 'Date',
       dataIndex: 'createdAt',
       key: 'date',
-      render: (date) => new Date(date?.toDate?.() || date).toLocaleDateString()
+      render: (date) => moment(date?.toDate?.() || date).format('DD/MM/YY')
     },
     {
       title: 'Amount',
@@ -248,26 +386,72 @@ const Dashboard = () => {
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spin size="large" />
+        <Spin size="large" tip="Loading dashboard..." />
       </div>
     );
   }
 
+  const costWarning = dashboardData.costAnalysis.withoutCost > 0 
+    ? `${dashboardData.costAnalysis.withoutCost} products missing cost price. Profit calculations may be estimated.`
+    : null;
+
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>Dashboard Overview</Title>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+        <Col>
+          <Title level={2}>Dashboard Overview</Title>
+        </Col>
+        <Col>
+          <Space>
+            <Text>Time Period:</Text>
+            <Select value={dateFilter} onChange={setDateFilter} style={{ width: 120 }}>
+              <Option value="week">1 Week</Option>
+              <Option value="2weeks">2 Weeks</Option>
+              <Option value="month">1 Month</Option>
+            </Select>
+          </Space>
+        </Col>
+      </Row>
+
+      {/* Cost Price Warning */}
+      {costWarning && (
+        <Alert
+          message="Cost Price Information"
+          description={costWarning}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 24 }}
+          action={
+            <Button size="small" type="link">
+              Manage Products
+            </Button>
+          }
+        />
+      )}
       
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
             title="Total Sales"
-            value={dashboardData.totalSales}
+            value={dashboardData.totalSales.toFixed(2)}
             prefix="₹"
             icon={<MoneyCollectOutlined />}
             color="#3f8600"
             trend="up"
             trendValue="12%"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={6}>
+          <StatCard
+            title="Net Profit"
+            value={dashboardData.totalProfit.toFixed(2)}
+            prefix="₹"
+            icon={<TrophyOutlined />}
+            color={dashboardData.totalProfit >= 0 ? "#3f8600" : "#cf1322"}
+            trend={dashboardData.totalProfit >= 0 ? "up" : "down"}
+            trendValue={`${dashboardData.profitMargin.toFixed(1)}%`}
+            warning={costWarning}
           />
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
@@ -292,6 +476,7 @@ const Dashboard = () => {
             value={dashboardData.totalProducts}
             icon={<ProductOutlined />}
             color="#13c2c2"
+            warning={costWarning}
           />
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
@@ -306,41 +491,72 @@ const Dashboard = () => {
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Monthly Expenses"
-            value={dashboardData.totalExpenses}
+            title="Total Expenses"
+            value={dashboardData.totalExpenses.toFixed(2)}
             prefix="₹"
             icon={<ArrowDownOutlined />}
             color="#f5222d"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={6}>
+          <StatCard
+            title="Profit Margin"
+            value={dashboardData.profitMargin.toFixed(1)}
+            suffix="%"
+            icon={<DollarOutlined />}
+            color={dashboardData.profitMargin >= 20 ? "#3f8600" : dashboardData.profitMargin >= 10 ? "#faad14" : "#f5222d"}
+            warning={costWarning}
           />
         </Col>
       </Row>
 
       {/* Charts Section */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+        {/* Large Sales Chart */}
         <Col xs={24} lg={16}>
           <Card 
             title={
               <Space>
                 <LineChartOutlined />
-                <Text strong>Sales Trend (Last 7 Days)</Text>
+                <Text strong>Sales & Profit Trend ({dateFilter === 'week' ? 'Last 7 Days' : dateFilter === '2weeks' ? 'Last 14 Days' : 'Last 30 Days'})</Text>
               </Space>
             }
+            style={{ height: '420px' }}
           >
-            <div style={{ height: '300px' }}>
+            <div style={{ height: '320px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dashboardData.salesData}>
+                <AreaChart data={dashboardData.profitData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1890ff" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#1890ff" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#52c41a" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#52c41a" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
-                  <Tooltip />
-                  <Line 
+                  <RechartsTooltip />
+                  <Area 
                     type="monotone" 
-                    dataKey="sales" 
+                    dataKey="revenue" 
                     stroke="#1890ff"
-                    strokeWidth={2}
-                    activeDot={{ r: 8 }}
+                    fillOpacity={1} 
+                    fill="url(#colorRevenue)"
+                    name="Revenue"
                   />
-                </LineChart>
+                  <Area 
+                    type="monotone" 
+                    dataKey="profit" 
+                    stroke="#52c41a"
+                    fillOpacity={1} 
+                    fill="url(#colorProfit)"
+                    name="Profit"
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
@@ -354,8 +570,9 @@ const Dashboard = () => {
                 <Text strong>Top Products by Revenue</Text>
               </Space>
             }
+            style={{ height: '420px' }}
           >
-            <div style={{ height: '300px' }}>
+            <div style={{ height: '320px' }}>
               {dashboardData.topProducts.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -364,7 +581,7 @@ const Dashboard = () => {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name.slice(0, 10)}... ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="revenue"
@@ -373,7 +590,7 @@ const Dashboard = () => {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+                    <RechartsTooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -391,26 +608,64 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      {/* Recent Orders */}
-      <Card
-        title={
-          <Space>
-            <HistoryOutlined />
-            <Text strong>Recent Orders</Text>
-          </Space>
-        }
-      >
-        <Table
-          columns={recentOrdersColumns}
-          dataSource={dashboardData.recentOrders}
-          rowKey="id"
-          pagination={false}
-          size="middle"
-          locale={{
-            emptyText: 'No recent orders'
-          }}
-        />
-      </Card>
+      {/* Cost Analysis and Recent Orders */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={8}>
+          <Card
+            title={
+              <Space>
+                <InfoCircleOutlined />
+                <Text strong>Cost Price Analysis</Text>
+              </Space>
+            }
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Statistic
+                  title="With Cost Price"
+                  value={dashboardData.costAnalysis.withCost}
+                  valueStyle={{ color: '#52c41a' }}
+                />
+              </Col>
+              <Col span={12}>
+                <Statistic
+                  title="Missing Cost Price"
+                  value={dashboardData.costAnalysis.withoutCost}
+                  valueStyle={{ color: '#faad14' }}
+                />
+              </Col>
+            </Row>
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary">
+                Products with cost price enable accurate profit calculations. 
+                Missing cost prices are estimated at 60% of selling price.
+              </Text>
+            </div>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={16}>
+          <Card
+            title={
+              <Space>
+                <HistoryOutlined />
+                <Text strong>Recent Orders</Text>
+              </Space>
+            }
+          >
+            <Table
+              columns={recentOrdersColumns}
+              dataSource={dashboardData.recentOrders}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              locale={{
+                emptyText: 'No recent orders'
+              }}
+            />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 };

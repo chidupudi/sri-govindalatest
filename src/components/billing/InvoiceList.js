@@ -1,4 +1,4 @@
-// src/components/billing/InvoiceList.js - Fixed version
+// src/components/billing/InvoiceList.js - Business perspective version
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -29,7 +29,10 @@ import {
   ExportOutlined,
   PrinterOutlined,
   CalendarOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  DollarOutlined,
+  ShoppingOutlined,
+  TrophyOutlined
 } from '@ant-design/icons';
 import { fetchOrders } from '../../features/order/orderSlice';
 import moment from 'moment';
@@ -112,12 +115,18 @@ const InvoiceList = () => {
       return orderDate >= thirtyDaysAgo && order.status !== 'cancelled';
     });
 
+    // Business perspective calculations
+    const totalRevenue = recentOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalGiven = recentOrders.reduce((sum, order) => sum + (order.discount || 0), 0);
+    const totalOrders = recentOrders.length;
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
     const summaryData = {
-      totalInvoices: recentOrders.length,
-      totalRevenue: recentOrders.reduce((sum, order) => sum + (order.total || 0), 0),
-      totalDiscount: recentOrders.reduce((sum, order) => sum + (order.discount || 0), 0),
-      averageOrderValue: recentOrders.length > 0 ? 
-        recentOrders.reduce((sum, order) => sum + (order.total || 0), 0) / recentOrders.length : 0
+      totalInvoices: totalOrders,
+      totalRevenue,
+      totalDiscountGiven: totalGiven,
+      averageOrderValue,
+      savingsProvided: totalGiven // From business perspective, this is what we gave to customers
     };
 
     setFilteredInvoices(filtered);
@@ -164,7 +173,7 @@ const InvoiceList = () => {
 
   const handleExport = () => {
     try {
-      // Simple CSV export
+      // Simple CSV export with business perspective
       const csvData = filteredInvoices.map(order => ({
         'Invoice Number': order.orderNumber,
         'Date': moment(order.createdAt?.toDate?.() || order.createdAt).format('YYYY-MM-DD'),
@@ -172,8 +181,8 @@ const InvoiceList = () => {
         'Phone': order.customer?.phone || '',
         'Items': order.items?.length || 0,
         'Subtotal': order.subtotal || 0,
-        'Discount': order.discount || 0,
-        'Total': order.total || 0,
+        'Discount Given': order.discount || 0,
+        'Final Amount': order.total || 0,
         'Payment Method': order.paymentMethod || '',
         'Status': order.status || ''
       }));
@@ -265,29 +274,23 @@ const InvoiceList = () => {
       ),
     },
     {
-      title: 'Amount',
-      key: 'amount',
-      width: 120,
+      title: 'Business Summary',
+      key: 'businessSummary',
+      width: 150,
       align: 'right',
       render: (_, record) => (
         <div>
-          {record.discount > 0 ? (
-            <>
-              <div style={{ fontSize: '12px', textDecoration: 'line-through', color: '#999' }}>
-                ₹{(record.subtotal || 0).toFixed(2)}
-              </div>
-              <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
-                ₹{(record.total || 0).toFixed(2)}
-              </div>
-              <div style={{ fontSize: '10px', color: '#52c41a' }}>
-                Save ₹{(record.discount || 0).toFixed(2)}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
-              ₹{(record.total || 0).toFixed(2)}
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            List: ₹{(record.subtotal || 0).toFixed(2)}
+          </div>
+          {record.discount > 0 && (
+            <div style={{ fontSize: '12px', color: '#fa8c16' }}>
+              Given: ₹{(record.discount || 0).toFixed(2)}
             </div>
           )}
+          <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
+            Sold: ₹{(record.total || 0).toFixed(2)}
+          </div>
         </div>
       ),
     },
@@ -365,7 +368,7 @@ const InvoiceList = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Summary Cards */}
+      {/* Summary Cards - Business Perspective */}
       {summary && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} md={6}>
@@ -374,6 +377,7 @@ const InvoiceList = () => {
                 title="Total Invoices (30 days)"
                 value={summary.totalInvoices}
                 prefix={<CalendarOutlined />}
+                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
@@ -384,18 +388,22 @@ const InvoiceList = () => {
                 value={summary.totalRevenue}
                 prefix="₹"
                 precision={2}
+                valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <Card>
               <Statistic
-                title="Total Savings"
-                value={summary.totalDiscount}
+                title="Discounts Given"
+                value={summary.totalDiscountGiven}
                 prefix="₹"
                 precision={2}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: '#fa8c16' }}
               />
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Value provided to customers
+              </div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -405,6 +413,7 @@ const InvoiceList = () => {
                 value={summary.averageOrderValue}
                 prefix="₹"
                 precision={2}
+                valueStyle={{ color: '#722ed1' }}
               />
             </Card>
           </Col>
@@ -416,7 +425,7 @@ const InvoiceList = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
             <Title level={4} style={{ margin: 0 }}>
-              Invoices ({filteredInvoices.length})
+              Sales Invoices ({filteredInvoices.length})
             </Title>
           </Col>
           <Col>
@@ -522,6 +531,29 @@ const InvoiceList = () => {
             }}
             scroll={{ x: 'max-content' }}
             size="middle"
+            summary={(pageData) => {
+              const pageTotal = pageData.reduce((sum, record) => sum + (record.total || 0), 0);
+              const pageDiscount = pageData.reduce((sum, record) => sum + (record.discount || 0), 0);
+              
+              return (
+                <Table.Summary.Row style={{ backgroundColor: '#fafafa' }}>
+                  <Table.Summary.Cell index={0} colSpan={4}>
+                    <Text strong>Page Total:</Text>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={4}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '12px', color: '#fa8c16' }}>
+                        Discount: ₹{pageDiscount.toFixed(2)}
+                      </div>
+                      <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
+                        Revenue: ₹{pageTotal.toFixed(2)}
+                      </div>
+                    </div>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={5} colSpan={3} />
+                </Table.Summary.Row>
+              );
+            }}
           />
         )}
       </Card>
