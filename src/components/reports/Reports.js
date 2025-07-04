@@ -1,4 +1,4 @@
-// src/components/reports/Reports.js
+// src/components/reports/Reports.js - Mitti Arts pottery business reports
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -62,7 +62,7 @@ const { RangePicker } = DatePicker;
 
 const StatCard = ({ title, value, change, changeType, icon: Icon, color }) => {
   return (
-    <Card>
+    <Card style={{ border: '1px solid #8b4513' }}>
       <Statistic
         title={title}
         value={value}
@@ -132,19 +132,19 @@ const Reports = () => {
   }, [dates, loadReport]);
 
   const reportButtons = [
-    { key: 'sales', label: 'Sales Report', icon: RiseOutlined, color: '#1890ff' },
-    { key: 'inventory', label: 'Inventory Report', icon: AppstoreOutlined, color: '#722ed1' },
-    { key: 'customers', label: 'Customer Report', icon: UserOutlined, color: '#13c2c2' },
-    { key: 'expenses', label: 'Expense Report', icon: BankOutlined, color: '#faad14' },
-    { key: 'profit-loss', label: 'Profit & Loss', icon: BarChartOutlined, color: '#52c41a' }
+    { key: 'sales', label: 'Pottery Sales', icon: RiseOutlined, color: '#8b4513' },
+    { key: 'inventory', label: 'Inventory Report', icon: AppstoreOutlined, color: '#cd853f' },
+    { key: 'customers', label: 'Customer Report', icon: UserOutlined, color: '#daa520' },
+    { key: 'expenses', label: 'Clay & Materials', icon: BankOutlined, color: '#b8860b' },
+    { key: 'profit-loss', label: 'Profit & Loss', icon: BarChartOutlined, color: '#228b22' }
   ];
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658'];
+  const POTTERY_COLORS = ['#8b4513', '#cd853f', '#daa520', '#b8860b', '#228b22', '#ff6347', '#9932cc'];
 
   // --- Sales Report ---
   const renderSalesReport = () => {
     if (!reportData || reportData.length === 0) {
-      return <Text type="secondary">No sales data available for the selected period</Text>;
+      return <Text type="secondary">No pottery sales data available for the selected period</Text>;
     }
 
     const totalSales = reportData.reduce((sum, item) => sum + item.totalSales, 0);
@@ -156,12 +156,12 @@ const Reports = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={8}>
             <StatCard
-              title="Total Sales"
+              title="Total Pottery Sales"
               value={`₹${totalSales.toLocaleString()}`}
               change="+12.5%"
               changeType="increase"
               icon={DollarOutlined}
-              color="#52c41a"
+              color="#8b4513"
             />
           </Col>
           <Col span={8}>
@@ -171,7 +171,7 @@ const Reports = () => {
               change="+8.3%"
               changeType="increase"
               icon={ShoppingOutlined}
-              color="#1890ff"
+              color="#cd853f"
             />
           </Col>
           <Col span={8}>
@@ -181,26 +181,26 @@ const Reports = () => {
               change="+4.1%"
               changeType="increase"
               icon={RiseOutlined}
-              color="#13c2c2"
+              color="#daa520"
             />
           </Col>
         </Row>
 
         <Card>
-          <Title level={4}>Sales Trend Over Time</Title>
+          <Title level={4}>Pottery Sales Trend Over Time</Title>
           <ResponsiveContainer width="100%" height={400}>
             <AreaChart data={reportData}>
               <defs>
-                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                <linearGradient id="colorPotterySales" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#8b4513" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#8b4513" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <XAxis dataKey="date" />
               <YAxis />
               <CartesianGrid strokeDasharray="3 3" />
               <Tooltip />
-              <Area type="monotone" dataKey="totalSales" stroke="#8884d8" fillOpacity={1} fill="url(#colorSales)" />
+              <Area type="monotone" dataKey="totalSales" stroke="#8b4513" fillOpacity={1} fill="url(#colorPotterySales)" />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
@@ -211,7 +211,7 @@ const Reports = () => {
   // --- Inventory Report ---
   const renderInventoryReport = () => {
     if (!reportData || reportData.length === 0) {
-      return <Text type="secondary">No inventory data available</Text>;
+      return <Text type="secondary">No pottery inventory data available</Text>;
     }
 
     const totalValue = reportData.reduce((sum, item) => sum + item.totalValue, 0);
@@ -223,25 +223,25 @@ const Reports = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={8}>
             <StatCard
-              title="Total Inventory Value"
+              title="Total Pottery Value"
               value={`₹${totalValue.toLocaleString()}`}
               icon={DollarOutlined}
-              color="#722ed1"
+              color="#8b4513"
             />
           </Col>
           <Col span={8}>
             <StatCard
-              title="Total Items"
+              title="Total Pottery Items"
               value={totalItems.toLocaleString()}
               icon={ShoppingCartOutlined}
-              color="#1890ff"
+              color="#cd853f"
             />
           </Col>
           <Col span={8}>
             <StatCard
               title="Low Stock Items"
               value={lowStockItems.toString()}
-              change={lowStockItems > 0 ? "Attention Required" : "All Good"}
+              change={lowStockItems > 0 ? "Restock Required" : "All Good"}
               changeType={lowStockItems > 0 ? "decrease" : "increase"}
               icon={WarningOutlined}
               color={lowStockItems > 0 ? "#fa541c" : "#52c41a"}
@@ -252,7 +252,7 @@ const Reports = () => {
         <Row gutter={16}>
           <Col span={16}>
             <Card>
-              <Title level={4}>Inventory by Category</Title>
+              <Title level={4}>Pottery Inventory by Category</Title>
               <ResponsiveContainer width="100%" height={350}>
                 <BarChart data={reportData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -260,14 +260,14 @@ const Reports = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="itemCount" fill="#722ed1" />
+                  <Bar dataKey="itemCount" fill="#8b4513" />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
           </Col>
           <Col span={8}>
             <Card>
-              <Title level={4}>Inventory Distribution</Title>
+              <Title level={4}>Pottery Distribution</Title>
               <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
@@ -281,7 +281,7 @@ const Reports = () => {
                     label
                   >
                     {reportData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={POTTERY_COLORS[index % POTTERY_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -309,10 +309,10 @@ const Reports = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={8}>
             <StatCard
-              title="Total Customers"
+              title="Total Pottery Customers"
               value={totalCustomers}
               icon={TeamOutlined}
-              color="#13c2c2"
+              color="#8b4513"
             />
           </Col>
           <Col span={8}>
@@ -320,7 +320,7 @@ const Reports = () => {
               title="New Customers"
               value={newCustomers}
               icon={UserOutlined}
-              color="#1890ff"
+              color="#cd853f"
             />
           </Col>
           <Col span={8}>
@@ -328,13 +328,13 @@ const Reports = () => {
               title="Returning Customers"
               value={returningCustomers}
               icon={UserOutlined}
-              color="#722ed1"
+              color="#daa520"
             />
           </Col>
         </Row>
 
         <Card>
-          <Title level={4}>Customer Growth Over Time</Title>
+          <Title level={4}>Pottery Customer Growth Over Time</Title>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={reportData.customerGrowth || []}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -342,8 +342,8 @@ const Reports = () => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="newCustomers" stroke="#13c2c2" />
-              <Line type="monotone" dataKey="returningCustomers" stroke="#722ed1" />
+              <Line type="monotone" dataKey="newCustomers" stroke="#8b4513" name="New Customers" />
+              <Line type="monotone" dataKey="returningCustomers" stroke="#cd853f" name="Returning Customers" />
             </LineChart>
           </ResponsiveContainer>
         </Card>
@@ -354,7 +354,7 @@ const Reports = () => {
   // --- Expense Report ---
   const renderExpenseReport = () => {
     if (!reportData || reportData.length === 0) {
-      return <Text type="secondary">No expense data available for the selected period</Text>;
+      return <Text type="secondary">No clay & materials expense data available for the selected period</Text>;
     }
 
     const totalExpenses = reportData.reduce((sum, item) => sum + item.amount, 0);
@@ -373,10 +373,10 @@ const Reports = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={12}>
             <StatCard
-              title="Total Expenses"
+              title="Total Clay & Materials Expenses"
               value={`₹${totalExpenses.toLocaleString()}`}
               icon={MoneyCollectOutlined}
-              color="#fa541c"
+              color="#8b4513"
             />
           </Col>
           <Col span={12}>
@@ -384,13 +384,13 @@ const Reports = () => {
               title="Expense Categories"
               value={Object.keys(expenseByCategory).length}
               icon={BankOutlined}
-              color="#fa8c16"
+              color="#cd853f"
             />
           </Col>
         </Row>
 
         <Card>
-          <Title level={4}>Expenses by Category</Title>
+          <Title level={4}>Clay & Materials Expenses by Category</Title>
           <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
@@ -404,7 +404,7 @@ const Reports = () => {
                 label
               >
                 {expenseDataForPie.map((entry, index) => (
-                  <Cell key={`cell-expense-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-expense-${index}`} fill={POTTERY_COLORS[index % POTTERY_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
@@ -418,7 +418,7 @@ const Reports = () => {
   // --- Profit & Loss Report ---
   const renderProfitLossReport = () => {
     if (!reportData || reportData.length === 0) {
-      return <Text type="secondary">No profit & loss data available</Text>;
+      return <Text type="secondary">No pottery business profit & loss data available</Text>;
     }
 
     const totalRevenue = reportData.totalRevenue || 0;
@@ -430,32 +430,32 @@ const Reports = () => {
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={8}>
             <StatCard
-              title="Total Revenue"
+              title="Pottery Revenue"
               value={`₹${totalRevenue.toLocaleString()}`}
               icon={DollarOutlined}
-              color="#52c41a"
+              color="#228b22"
             />
           </Col>
           <Col span={8}>
             <StatCard
-              title="Total Cost"
+              title="Clay & Materials Cost"
               value={`₹${totalCost.toLocaleString()}`}
               icon={MoneyCollectOutlined}
-              color="#fa541c"
+              color="#8b4513"
             />
           </Col>
           <Col span={8}>
             <StatCard
-              title="Profit / Loss"
+              title="Net Profit / Loss"
               value={`₹${profitLoss.toLocaleString()}`}
               icon={profitLoss >= 0 ? RiseOutlined : FallOutlined}
-              color={profitLoss >= 0 ? '#52c41a' : '#fa541c'}
+              color={profitLoss >= 0 ? '#228b22' : '#fa541c'}
             />
           </Col>
         </Row>
 
         <Card>
-          <Title level={4}>Revenue vs Cost Over Time</Title>
+          <Title level={4}>Pottery Business: Revenue vs Cost Over Time</Title>
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={reportData.overTime || []}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -463,8 +463,8 @@ const Reports = () => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="totalRevenue" stroke="#52c41a" />
-              <Line type="monotone" dataKey="totalCost" stroke="#fa541c" />
+              <Line type="monotone" dataKey="totalRevenue" stroke="#228b22" name="Pottery Revenue" />
+              <Line type="monotone" dataKey="totalCost" stroke="#8b4513" name="Clay & Materials Cost" />
             </LineChart>
           </ResponsiveContainer>
         </Card>
@@ -476,13 +476,13 @@ const Reports = () => {
     if (loading) {
       return (
         <div style={{ textAlign: 'center', padding: 50 }}>
-          <Spin size="large" tip="Loading report..." />
+          <Spin size="large" tip="Loading pottery business report..." />
         </div>
       );
     }
     if (error) {
       message.error(error);
-      return <Alert message="Error loading report" type="error" showIcon />;
+      return <Alert message="Error loading pottery report" type="error" showIcon />;
     }
     switch (activeReport) {
       case 'sales': return renderSalesReport();
@@ -495,8 +495,45 @@ const Reports = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 24 }}>Reports Dashboard</Title>
+    <div style={{ padding: 24, backgroundColor: '#fafafa' }}>
+      {/* Header with Mitti Arts branding */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', 
+        color: 'white', 
+        padding: '20px', 
+        borderRadius: '12px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            background: 'white',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#8b4513',
+            fontWeight: 'bold',
+            fontSize: '24px'
+          }}>
+            🏺
+          </div>
+          <div>
+            <Title level={2} style={{ margin: 0, color: 'white' }}>
+              Mitti Arts Reports
+            </Title>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
+              Pottery Business Analytics & Insights
+            </Text>
+          </div>
+        </div>
+        <div style={{ fontSize: '32px', opacity: 0.3 }}>📊</div>
+      </div>
+
       <Space style={{ marginBottom: 16 }} wrap>
         {reportButtons.map(({ key, label, icon: Icon, color }) => (
           <Button
@@ -504,6 +541,11 @@ const Reports = () => {
             type={activeReport === key ? 'primary' : 'default'}
             icon={<Icon />}
             onClick={() => setActiveReport(key)}
+            style={{
+              backgroundColor: activeReport === key ? color : undefined,
+              borderColor: activeReport === key ? color : undefined,
+              color: activeReport === key ? 'white' : color
+            }}
           >
             {label}
           </Button>
@@ -512,15 +554,70 @@ const Reports = () => {
 
       {(activeReport === 'sales' || activeReport === 'customers' || activeReport === 'expenses') && (
         <div style={{ marginBottom: 24 }}>
-          <RangePicker
-            defaultValue={[dates[0], dates[1]]}
-            onChange={onDateChange}
-            allowClear={false}
-          />
+          <Card size="small">
+            <Space align="center">
+              <Text strong>📅 Select Date Range:</Text>
+              <RangePicker
+                defaultValue={[dates[0], dates[1]]}
+                onChange={onDateChange}
+                allowClear={false}
+              />
+              <Text type="secondary">
+                Analyze your pottery business performance over time
+              </Text>
+            </Space>
+          </Card>
         </div>
       )}
 
-      {renderReport()}
+      {/* Report Content */}
+      <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '16px' }}>
+        {renderReport()}
+      </div>
+
+      {/* Pottery Business Insights */}
+      {reportData && !loading && (
+        <Card 
+          title={
+            <Space>
+              <span>🎯</span>
+              <Text strong>Pottery Business Insights</Text>
+            </Space>
+          } 
+          style={{ marginTop: 16 }}
+          bodyStyle={{ backgroundColor: '#f9f9f9' }}
+        >
+          <Row gutter={16}>
+            <Col span={8}>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <div style={{ fontSize: '24px', marginBottom: 8 }}>🏺</div>
+                <Text strong>Handcrafted Excellence</Text>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                  Focus on unique, artisanal pottery pieces
+                </div>
+              </div>
+            </Col>
+            <Col span={8}>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <div style={{ fontSize: '24px', marginBottom: 8 }}>🌱</div>
+                <Text strong>Sustainable Clay</Text>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                  Eco-friendly materials and processes
+                </div>
+              </div>
+            </Col>
+            <Col span={8}>
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <div style={{ fontSize: '24px', marginBottom: 8 }}>🎨</div>
+                <Text strong>Custom Artistry</Text>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                  Personalized pottery for every customer
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
+      )}
     </div>
   );
 };

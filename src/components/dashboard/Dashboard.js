@@ -1,4 +1,4 @@
-// src/components/dashboard/Dashboard.js - Improved with profit calculations and filters
+// src/components/dashboard/Dashboard.js - Mitti Arts pottery business dashboard
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -64,7 +64,7 @@ const StatCard = ({ title, value, icon, color, trend, trendValue, prefix, suffix
   const trendColor = trend === 'up' ? '#3f8600' : '#cf1322';
   
   return (
-    <Card hoverable>
+    <Card hoverable style={{ border: '1px solid #8b4513', borderRadius: '8px' }}>
       <Space direction="horizontal" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
         <div>
           <Statistic
@@ -123,7 +123,8 @@ const Dashboard = () => {
     salesData: [],
     topProducts: [],
     recentOrders: [],
-    profitData: []
+    profitData: [],
+    categoryBreakdown: []
   });
 
   useEffect(() => {
@@ -192,8 +193,8 @@ const Dashboard = () => {
     const netProfit = grossProfit - totalExpenses;
     const profitMargin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
 
-    // Low stock products (stock <= 10)
-    const lowStockProducts = products.filter(product => product.stock <= 10).length;
+    // Low stock products (stock <= 5 for pottery)
+    const lowStockProducts = products.filter(product => product.stock <= 5).length;
 
     // Sales data for chart
     const salesData = generateSalesData(filteredOrders, startDate, endDate);
@@ -209,6 +210,9 @@ const Dashboard = () => {
       .sort((a, b) => new Date(b.createdAt?.toDate?.() || b.createdAt) - new Date(a.createdAt?.toDate?.() || a.createdAt))
       .slice(0, 5);
 
+    // Category breakdown for pottery business
+    const categoryBreakdown = getCategoryBreakdown();
+
     setDashboardData({
       totalSales,
       totalOrders,
@@ -222,7 +226,8 @@ const Dashboard = () => {
       salesData,
       topProducts,
       recentOrders,
-      profitData
+      profitData,
+      categoryBreakdown
     });
   };
 
@@ -243,7 +248,7 @@ const Dashboard = () => {
           if (product && product.costPrice) {
             totalCost += product.costPrice * item.quantity;
           } else if (product) {
-            // If no cost price, estimate at 60% of selling price
+            // If no cost price, estimate at 60% of selling price for pottery
             totalCost += (item.price * 0.6) * item.quantity;
           }
         });
@@ -342,6 +347,40 @@ const Dashboard = () => {
       .slice(0, 5);
   };
 
+  const getCategoryBreakdown = () => {
+    const categoryData = {};
+    
+    products.forEach(product => {
+      const category = product.category || 'Other';
+      if (!categoryData[category]) {
+        categoryData[category] = {
+          name: category,
+          count: 0,
+          value: 0,
+          emoji: getCategoryEmoji(category)
+        };
+      }
+      categoryData[category].count += 1;
+      categoryData[category].value += product.stock || 0;
+    });
+
+    return Object.values(categoryData);
+  };
+
+  const getCategoryEmoji = (category) => {
+    const categoryMap = {
+      'Pottery': '🏺',
+      'Terracotta': '🟫',
+      'Clay Art': '🎨',
+      'Decorative Items': '✨',
+      'Garden Pottery': '🌱',
+      'Kitchen Pottery': '🍽️',
+      'Gifts & Souvenirs': '🎁',
+      'Custom Orders': '🛠️'
+    };
+    return categoryMap[category] || '🏺';
+  };
+
   const isLoading = ordersLoading || productsLoading || customersLoading || expensesLoading;
 
   const recentOrdersColumns = [
@@ -381,37 +420,67 @@ const Dashboard = () => {
     }
   ];
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const COLORS = ['#8b4513', '#cd853f', '#daa520', '#b8860b', '#228b22', '#ff6347', '#9932cc', '#2f4f4f'];
 
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Spin size="large" tip="Loading dashboard..." />
+        <Spin size="large" tip="Loading Mitti Arts dashboard..." />
       </div>
     );
   }
 
   const costWarning = dashboardData.costAnalysis.withoutCost > 0 
-    ? `${dashboardData.costAnalysis.withoutCost} products missing cost price. Profit calculations may be estimated.`
+    ? `${dashboardData.costAnalysis.withoutCost} pottery items missing cost price. Profit calculations may be estimated.`
     : null;
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <Col>
-          <Title level={2}>Dashboard Overview</Title>
-        </Col>
-        <Col>
-          <Space>
-            <Text>Time Period:</Text>
-            <Select value={dateFilter} onChange={setDateFilter} style={{ width: 120 }}>
-              <Option value="week">1 Week</Option>
-              <Option value="2weeks">2 Weeks</Option>
-              <Option value="month">1 Month</Option>
-            </Select>
-          </Space>
-        </Col>
-      </Row>
+    <div style={{ padding: '24px', backgroundColor: '#fafafa' }}>
+      {/* Header with Mitti Arts branding */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', 
+        color: 'white', 
+        padding: '20px', 
+        borderRadius: '12px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            background: 'white',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#8b4513',
+            fontWeight: 'bold',
+            fontSize: '24px'
+          }}>
+            🏺
+          </div>
+          <div>
+            <Title level={2} style={{ margin: 0, color: 'white' }}>
+              Mitti Arts Dashboard
+            </Title>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
+              Handcrafted Pottery & Terracotta Business Overview
+            </Text>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <Text style={{ color: 'rgba(255,255,255,0.8)' }}>Time Period:</Text>
+          <br />
+          <Select value={dateFilter} onChange={setDateFilter} style={{ width: 120 }}>
+            <Option value="week">1 Week</Option>
+            <Option value="2weeks">2 Weeks</Option>
+            <Option value="month">1 Month</Option>
+          </Select>
+        </div>
+      </div>
 
       {/* Cost Price Warning */}
       {costWarning && (
@@ -433,11 +502,11 @@ const Dashboard = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Total Sales"
+            title="Pottery Sales"
             value={dashboardData.totalSales.toFixed(2)}
             prefix="₹"
             icon={<MoneyCollectOutlined />}
-            color="#3f8600"
+            color="#8b4513"
             trend="up"
             trendValue="12%"
           />
@@ -456,10 +525,10 @@ const Dashboard = () => {
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Total Orders"
+            title="Orders"
             value={dashboardData.totalOrders}
             icon={<ShoppingCartOutlined />}
-            color="#1890ff"
+            color="#cd853f"
           />
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
@@ -467,21 +536,21 @@ const Dashboard = () => {
             title="Customers"
             value={dashboardData.totalCustomers}
             icon={<UserOutlined />}
-            color="#722ed1"
+            color="#daa520"
           />
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Products"
+            title="Pottery Items"
             value={dashboardData.totalProducts}
             icon={<ProductOutlined />}
-            color="#13c2c2"
+            color="#b8860b"
             warning={costWarning}
           />
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Low Stock Items"
+            title="Low Stock"
             value={dashboardData.lowStockProducts}
             icon={<ExclamationOutlined />}
             color="#faad14"
@@ -491,7 +560,7 @@ const Dashboard = () => {
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
           <StatCard
-            title="Total Expenses"
+            title="Expenses"
             value={dashboardData.totalExpenses.toFixed(2)}
             prefix="₹"
             icon={<ArrowDownOutlined />}
@@ -528,12 +597,12 @@ const Dashboard = () => {
                 <AreaChart data={dashboardData.profitData}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1890ff" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#1890ff" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#8b4513" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#8b4513" stopOpacity={0.1}/>
                     </linearGradient>
                     <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#52c41a" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#52c41a" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#228b22" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#228b22" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -543,7 +612,7 @@ const Dashboard = () => {
                   <Area 
                     type="monotone" 
                     dataKey="revenue" 
-                    stroke="#1890ff"
+                    stroke="#8b4513"
                     fillOpacity={1} 
                     fill="url(#colorRevenue)"
                     name="Revenue"
@@ -551,7 +620,7 @@ const Dashboard = () => {
                   <Area 
                     type="monotone" 
                     dataKey="profit" 
-                    stroke="#52c41a"
+                    stroke="#228b22"
                     fillOpacity={1} 
                     fill="url(#colorProfit)"
                     name="Profit"
@@ -567,30 +636,30 @@ const Dashboard = () => {
             title={
               <Space>
                 <PieChartOutlined />
-                <Text strong>Top Products by Revenue</Text>
+                <Text strong>Pottery Categories</Text>
               </Space>
             }
             style={{ height: '420px' }}
           >
             <div style={{ height: '320px' }}>
-              {dashboardData.topProducts.length > 0 ? (
+              {dashboardData.categoryBreakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={dashboardData.topProducts}
+                      data={dashboardData.categoryBreakdown}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name.slice(0, 10)}... ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
-                      dataKey="revenue"
+                      dataKey="count"
                     >
-                      {dashboardData.topProducts.map((entry, index) => (
+                      {dashboardData.categoryBreakdown.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <RechartsTooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+                    <RechartsTooltip formatter={(value, name) => [value, 'Products']} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -600,7 +669,7 @@ const Dashboard = () => {
                   alignItems: 'center', 
                   height: '100%' 
                 }}>
-                  <Text type="secondary">No sales data available</Text>
+                  <Text type="secondary">No pottery data available</Text>
                 </div>
               )}
             </div>
@@ -615,7 +684,7 @@ const Dashboard = () => {
             title={
               <Space>
                 <InfoCircleOutlined />
-                <Text strong>Cost Price Analysis</Text>
+                <Text strong>Clay Material Cost Analysis</Text>
               </Space>
             }
           >
@@ -624,7 +693,12 @@ const Dashboard = () => {
                 <Statistic
                   title="With Cost Price"
                   value={dashboardData.costAnalysis.withCost}
-                  valueStyle={{ color: '#52c41a' }}
+                  valueStyle={{ color: '#228b22' }}
+                  suffix={
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      pottery items
+                    </div>
+                  }
                 />
               </Col>
               <Col span={12}>
@@ -632,12 +706,17 @@ const Dashboard = () => {
                   title="Missing Cost Price"
                   value={dashboardData.costAnalysis.withoutCost}
                   valueStyle={{ color: '#faad14' }}
+                  suffix={
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      pottery items
+                    </div>
+                  }
                 />
               </Col>
             </Row>
             <div style={{ marginTop: 16 }}>
               <Text type="secondary">
-                Products with cost price enable accurate profit calculations. 
+                Pottery items with cost price enable accurate profit calculations. 
                 Missing cost prices are estimated at 60% of selling price.
               </Text>
             </div>
@@ -649,7 +728,7 @@ const Dashboard = () => {
             title={
               <Space>
                 <HistoryOutlined />
-                <Text strong>Recent Orders</Text>
+                <Text strong>Recent Pottery Orders</Text>
               </Space>
             }
           >
@@ -660,12 +739,62 @@ const Dashboard = () => {
               pagination={false}
               size="small"
               locale={{
-                emptyText: 'No recent orders'
+                emptyText: 'No recent pottery orders'
               }}
             />
           </Card>
         </Col>
       </Row>
+
+      {/* Category Breakdown */}
+      {dashboardData.categoryBreakdown.length > 0 && (
+        <Card title="Pottery Collection Overview" style={{ marginTop: 16 }}>
+          <Row gutter={16}>
+            {dashboardData.categoryBreakdown.map((category, index) => (
+              <Col xs={12} sm={8} md={6} lg={4} xl={3} key={category.name}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', marginBottom: 8 }}>{category.emoji}</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: 4 }}>
+                    {category.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666' }}>
+                    {category.count} items
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666' }}>
+                    {category.value} in stock
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Card>
+      )}
+
+      {/* Quick Insights */}
+      {dashboardData.totalOrders > 0 && (
+        <Card title="Business Insights" size="small" style={{ marginTop: 16 }}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Text type="secondary">Order Success Rate:</Text>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#228b22' }}>
+                {((dashboardData.totalOrders / (dashboardData.totalOrders + 0)) * 100).toFixed(1)}%
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text type="secondary">Avg Discount per Order:</Text>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#faad14' }}>
+                ₹{dashboardData.totalOrders > 0 ? (0 / dashboardData.totalOrders).toFixed(2) : '0.00'}
+              </div>
+            </Col>
+            <Col span={8}>
+              <Text type="secondary">Revenue per Day:</Text>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#8b4513' }}>
+                ₹{(dashboardData.totalSales / 7).toFixed(2)}
+              </div>
+            </Col>
+          </Row>
+        </Card>
+      )}
     </div>
   );
 };

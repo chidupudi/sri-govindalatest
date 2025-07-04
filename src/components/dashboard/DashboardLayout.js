@@ -1,4 +1,4 @@
-// src/components/dashboard/DashboardLayout.js - Debug version
+// src/components/dashboard/DashboardLayout.js
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -146,7 +146,7 @@ const DashboardLayout = ({ children }) => {
           {!collapsed && (
             <div>
               <Title level={5} style={{ margin: 0 }}>
-                Sri Govinda
+                Mitti Arts
               </Title>
               <Text type="secondary">POS System</Text>
             </div>
@@ -192,7 +192,7 @@ const DashboardLayout = ({ children }) => {
             Version 1.0.0
           </Text>
           <Text type="secondary" style={{ fontSize: 10 }}>
-            &copy; 2023 Sri Govinda POS
+            &copy; 2023 Mitti Arts POS
           </Text>
         </div>
       </Sider>
@@ -235,7 +235,6 @@ const DashboardLayout = ({ children }) => {
         </Header>
 
         <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, background: '#fff' }}>
-         
           {children}
         </Content>
       </Layout>

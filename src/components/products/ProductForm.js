@@ -1,3 +1,4 @@
+// src/components/products/ProductForm.js - Updated for Mitti Arts
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Form, Input, Button, Select, Alert, Row, Col, message } from 'antd';
@@ -26,7 +27,7 @@ const ProductForm = ({ product, onClose }) => {
   const formik = useFormik({
     initialValues: {
       name: product?.name || '',
-      category: product?.category || 'German silver',
+      category: product?.category || 'Pottery',
       price: product?.price || '',
       weight: product?.weight || '',
       costPrice: product?.costPrice || '',
@@ -86,6 +87,23 @@ const ProductForm = ({ product, onClose }) => {
         <Alert message={success} type="success" style={{ marginBottom: 16 }} />
       )}
 
+      {/* Header with Mitti Arts branding */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', 
+        color: 'white', 
+        padding: '12px 16px', 
+        borderRadius: '6px',
+        marginBottom: 16,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }}>
+        <span style={{ fontSize: '18px' }}>🏺</span>
+        <span style={{ fontWeight: 'bold' }}>
+          {product ? 'Edit Product' : 'Add New Product'} - Mitti Arts
+        </span>
+      </div>
+
       <Row gutter={16}>
         <Col span={24}>
           <Form.Item
@@ -98,6 +116,7 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="e.g., Decorative Terracotta Vase"
             />
           </Form.Item>
         </Col>
@@ -113,11 +132,16 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.category}
               onChange={(value) => formik.setFieldValue('category', value)}
               onBlur={formik.handleBlur}
+              placeholder="Select product category"
             >
-              <Option value="German silver">German silver</Option>
-              <Option value="1g gold">1g gold</Option>
-              <Option value="Panchaloha">Panchaloha</Option>
-              <Option value="Gifts">Gifts</Option>
+              <Option value="Pottery">🏺 Pottery</Option>
+              <Option value="Terracotta">🟫 Terracotta</Option>
+              <Option value="Clay Art">🎨 Clay Art</Option>
+              <Option value="Decorative Items">✨ Decorative Items</Option>
+              <Option value="Garden Pottery">🌱 Garden Pottery</Option>
+              <Option value="Kitchen Pottery">🍽️ Kitchen Pottery</Option>
+              <Option value="Gifts & Souvenirs">🎁 Gifts & Souvenirs</Option>
+              <Option value="Custom Orders">🛠️ Custom Orders</Option>
             </Select>
           </Form.Item>
         </Col>
@@ -134,13 +158,15 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.price}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="Selling price"
+              prefix="₹"
             />
           </Form.Item>
         </Col>
         
         <Col span={12}>
           <Form.Item
-            label="Weight (g)"
+            label="Weight (kg)"
             validateStatus={formik.touched.weight && formik.errors.weight ? 'error' : ''}
             help={formik.touched.weight && formik.errors.weight}
           >
@@ -150,6 +176,8 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.weight}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="Product weight"
+              suffix="kg"
             />
           </Form.Item>
         </Col>
@@ -166,13 +194,15 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.costPrice}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="Manufacturing cost"
+              prefix="₹"
             />
           </Form.Item>
         </Col>
         
         <Col span={12}>
           <Form.Item
-            label="Stock"
+            label="Stock Quantity"
             validateStatus={formik.touched.stock && formik.errors.stock ? 'error' : ''}
             help={formik.touched.stock && formik.errors.stock}
           >
@@ -182,24 +212,58 @@ const ProductForm = ({ product, onClose }) => {
               value={formik.values.stock}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="Available quantity"
+              suffix="pcs"
             />
           </Form.Item>
         </Col>
         
         <Col span={24}>
-          <Form.Item label="Description">
+          <Form.Item label="Product Description">
             <TextArea
               name="description"
               rows={3}
               value={formik.values.description}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              placeholder="Describe the product features, materials, dimensions, etc."
             />
           </Form.Item>
         </Col>
       </Row>
+
+      {/* Product Preview */}
+      {formik.values.name && (
+        <div style={{ 
+          backgroundColor: '#f6f8fa', 
+          border: '1px solid #d0d7de', 
+          borderRadius: '6px', 
+          padding: '12px',
+          marginTop: '16px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Product Preview:</div>
+          <div style={{ fontSize: '14px' }}>
+            <span style={{ color: '#8b4513', fontWeight: 'bold' }}>{formik.values.name}</span>
+            {formik.values.category && (
+              <span style={{ marginLeft: 8, padding: '2px 8px', backgroundColor: '#8b4513', color: 'white', borderRadius: 12, fontSize: '12px' }}>
+                {formik.values.category}
+              </span>
+            )}
+          </div>
+          {formik.values.price && (
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0969da', marginTop: 4 }}>
+              ₹{formik.values.price}
+              {formik.values.costPrice && (
+                <span style={{ fontSize: '12px', color: '#656d76', marginLeft: 8 }}>
+                  (Cost: ₹{formik.values.costPrice})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       
-      <Form.Item style={{ textAlign: 'right', marginTop: 16 }}>
+      <Form.Item style={{ textAlign: 'right', marginTop: 24 }}>
         <Button onClick={onClose} disabled={loading} style={{ marginRight: 8 }}>
           Cancel
         </Button>
@@ -207,8 +271,12 @@ const ProductForm = ({ product, onClose }) => {
           type="primary" 
           htmlType="submit"
           loading={loading}
+          style={{ 
+            background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)',
+            borderColor: '#8b4513'
+          }}
         >
-          {product ? 'Update' : 'Create'}
+          {product ? 'Update Product' : 'Create Product'}
         </Button>
       </Form.Item>
     </Form>

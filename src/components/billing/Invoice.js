@@ -1,4 +1,4 @@
-// src/components/billing/Invoice.js - Complete Enhanced Invoice with Embedded CSS
+// src/components/billing/Invoice.js - Complete Enhanced Invoice with Mitti Arts Branding
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -419,7 +419,7 @@ const Invoice = () => {
               border: '2px solid #d4af37'
             }}
           >
-            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#d4af37' }}>SG</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#d4af37' }}>MA</span>
           </div>
           <div>
             <div style={{
@@ -428,10 +428,10 @@ const Invoice = () => {
               margin: 0,
               textShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
-              Sri Govinda
+              Mitti Arts
             </div>
             <div style={{ fontSize: '11px', opacity: '0.9', marginTop: '2px', letterSpacing: '1px' }}>
-              ✨ Gold • German Silver • Panchaloha • Gifts ✨
+              ✨ Handcrafted Pottery • Terracotta • Art & Gifts ✨
             </div>
           </div>
         </div>
@@ -442,7 +442,7 @@ const Invoice = () => {
           opacity: '0.3',
           transform: 'rotate(15deg)'
         }}>
-          🕉️
+          🏺
         </div>
       </div>
       
@@ -635,9 +635,9 @@ const Invoice = () => {
                       marginLeft: '4px',
                       opacity: '0.7'
                     }}>
-                      {item.product.category.toLowerCase().includes('gold') ? '🥇' :
-                       item.product.category.toLowerCase().includes('german') ? '🥈' :
-                       item.product.category.toLowerCase().includes('panchaloha') ? '🕉️' :
+                      {item.product.category.toLowerCase().includes('pottery') ? '🏺' :
+                       item.product.category.toLowerCase().includes('terracotta') ? '🟫' :
+                       item.product.category.toLowerCase().includes('art') ? '🎨' :
                        item.product.category.toLowerCase().includes('gift') ? '🎁' : '✨'}
                     </span>
                   )}
@@ -830,11 +830,11 @@ const Invoice = () => {
         color: '#4a5568',
         marginBottom: '5px'
       }}>
-        Thank you for choosing Sri Govinda! 🙏
+        Thank you for choosing Mitti Arts! 🙏
       </div>
       <div>We appreciate your business and look forward to serving you again.</div>
       <div style={{ marginTop: '8px', fontSize: '9px' }}>
-        For any queries, contact us at +91 98765 43210 | info@srigovinda.com
+        For any queries, contact us at +91 98765 43210 | info@mittiarts.com
       </div>
     </div>
   );

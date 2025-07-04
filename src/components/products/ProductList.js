@@ -1,4 +1,4 @@
-// src/components/products/ProductList.js - Tablet optimized layout
+// src/components/products/ProductList.js - Mitti Arts pottery themed
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -99,6 +99,36 @@ const ProductList = () => {
     dispatch(fetchProducts(filters));
   };
 
+  // Get category emoji
+  const getCategoryEmoji = (category) => {
+    const categoryMap = {
+      'Pottery': '🏺',
+      'Terracotta': '🟫',
+      'Clay Art': '🎨',
+      'Decorative Items': '✨',
+      'Garden Pottery': '🌱',
+      'Kitchen Pottery': '🍽️',
+      'Gifts & Souvenirs': '🎁',
+      'Custom Orders': '🛠️'
+    };
+    return categoryMap[category] || '🏺';
+  };
+
+  // Get category color
+  const getCategoryColor = (category) => {
+    const colorMap = {
+      'Pottery': '#8b4513',
+      'Terracotta': '#cd853f',
+      'Clay Art': '#daa520',
+      'Decorative Items': '#b8860b',
+      'Garden Pottery': '#228b22',
+      'Kitchen Pottery': '#ff6347',
+      'Gifts & Souvenirs': '#9932cc',
+      'Custom Orders': '#2f4f4f'
+    };
+    return colorMap[category] || '#8b4513';
+  };
+
   // Table columns for desktop
   const columns = [
     {
@@ -108,11 +138,15 @@ const ProductList = () => {
       width: 200,
       render: (text, record) => (
         <div>
-          <Text strong>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.category}
-          </Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{getCategoryEmoji(record.category)}</span>
+            <Text strong>{text}</Text>
+          </div>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: 2 }}>
+            <Tag color={getCategoryColor(record.category)} size="small">
+              {record.category}
+            </Tag>
+          </div>
         </div>
       ),
     },
@@ -122,7 +156,7 @@ const ProductList = () => {
       width: 150,
       render: (_, record) => (
         <div>
-          <div>Weight: {record.weight || '-'}g</div>
+          <div>Weight: {record.weight || '-'}kg</div>
           <div>SKU: {record.sku || '-'}</div>
         </div>
       ),
@@ -133,12 +167,17 @@ const ProductList = () => {
       width: 120,
       render: (_, record) => (
         <div>
-          <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff' }}>
+          <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#8b4513' }}>
             ₹{record.price}
           </div>
           {record.costPrice && (
             <div style={{ fontSize: '12px', color: '#666' }}>
               Cost: ₹{record.costPrice}
+            </div>
+          )}
+          {record.costPrice && (
+            <div style={{ fontSize: '11px', color: '#52c41a' }}>
+              Margin: {Math.round(((record.price - record.costPrice) / record.price) * 100)}%
             </div>
           )}
         </div>
@@ -154,7 +193,7 @@ const ProductList = () => {
         <Badge
           count={stock}
           style={{
-            backgroundColor: stock <= 10 ? '#ff4d4f' : stock <= 50 ? '#faad14' : '#52c41a'
+            backgroundColor: stock <= 5 ? '#ff4d4f' : stock <= 20 ? '#faad14' : '#52c41a'
           }}
         />
       ),
@@ -171,6 +210,7 @@ const ProductList = () => {
               size="small"
               onClick={() => handleEdit(record)}
               type="primary"
+              style={{ backgroundColor: '#8b4513', borderColor: '#8b4513' }}
             />
           </Tooltip>
           <Tooltip title="Delete">
@@ -200,25 +240,34 @@ const ProductList = () => {
     >
       <Row gutter={[8, 8]} align="middle">
         <Col flex="auto">
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: '18px' }}>{getCategoryEmoji(product.category)}</span>
             <Text strong style={{ fontSize: '14px' }}>{product.name}</Text>
-            <br />
-            <Tag color="blue" size="small">{product.category}</Tag>
+          </div>
+          <div>
+            <Tag color={getCategoryColor(product.category)} size="small">
+              {product.category}
+            </Tag>
             {product.weight && (
-              <Tag color="green" size="small">{product.weight}g</Tag>
+              <Tag color="blue" size="small">{product.weight}kg</Tag>
             )}
           </div>
         </Col>
         <Col>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1890ff' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#8b4513' }}>
               ₹{product.price}
             </div>
+            {product.costPrice && (
+              <div style={{ fontSize: '11px', color: '#666' }}>
+                Cost: ₹{product.costPrice}
+              </div>
+            )}
             <Badge
               count={product.stock}
               style={{
-                backgroundColor: product.stock <= 10 ? '#ff4d4f' : 
-                                product.stock <= 50 ? '#faad14' : '#52c41a',
+                backgroundColor: product.stock <= 5 ? '#ff4d4f' : 
+                                product.stock <= 20 ? '#faad14' : '#52c41a',
                 fontSize: '10px'
               }}
             />
@@ -232,6 +281,7 @@ const ProductList = () => {
               onClick={() => handleEdit(product)}
               type="primary"
               block
+              style={{ backgroundColor: '#8b4513', borderColor: '#8b4513' }}
             />
             <Button
               icon={<DeleteOutlined />}
@@ -248,14 +298,22 @@ const ProductList = () => {
 
   return (
     <div style={{ padding: screens.xs ? 12 : 24 }}>
-      {/* Header */}
+      {/* Header with Mitti Arts branding */}
       <Card
         style={{ marginBottom: 16 }}
         bodyStyle={{ padding: screens.xs ? 12 : 16 }}
       >
         <Row justify="space-between" align="middle" gutter={[8, 8]}>
           <Col xs={24} sm={12}>
-            <Title level={4} style={{ margin: 0 }}>Products</Title>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '24px' }}>🏺</span>
+              <div>
+                <Title level={4} style={{ margin: 0, color: '#8b4513' }}>
+                  Mitti Arts Products
+                </Title>
+                <Text type="secondary">Handcrafted pottery & terracotta collection</Text>
+              </div>
+            </div>
           </Col>
           <Col xs={24} sm={12} style={{ textAlign: screens.xs ? 'left' : 'right' }}>
             <Space wrap>
@@ -288,6 +346,7 @@ const ProductList = () => {
                   setOpenForm(true);
                 }}
                 size={screens.xs ? 'small' : 'middle'}
+                style={{ backgroundColor: '#8b4513', borderColor: '#8b4513' }}
               >
                 {screens.xs ? 'Add' : 'Add Product'}
               </Button>
@@ -301,7 +360,7 @@ const ProductList = () => {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} sm={12} md={8}>
             <Input
-              placeholder="Search products..."
+              placeholder="Search pottery products..."
               prefix={<SearchOutlined />}
               value={filters.search || ''}
               onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -318,10 +377,14 @@ const ProductList = () => {
               suffixIcon={<FilterOutlined />}
             >
               <Option value="">All Categories</Option>
-              <Option value="German silver">German silver</Option>
-              <Option value="1g gold">1g gold</Option>
-              <Option value="Panchaloha">Panchaloha</Option>
-              <Option value="Gifts">Gifts</Option>
+              <Option value="Pottery">🏺 Pottery</Option>
+              <Option value="Terracotta">🟫 Terracotta</Option>
+              <Option value="Clay Art">🎨 Clay Art</Option>
+              <Option value="Decorative Items">✨ Decorative Items</Option>
+              <Option value="Garden Pottery">🌱 Garden Pottery</Option>
+              <Option value="Kitchen Pottery">🍽️ Kitchen Pottery</Option>
+              <Option value="Gifts & Souvenirs">🎁 Gifts & Souvenirs</Option>
+              <Option value="Custom Orders">🛠️ Custom Orders</Option>
             </Select>
           </Col>
           <Col xs={24} sm={24} md={6}>
@@ -348,19 +411,35 @@ const ProductList = () => {
           <div style={{ textAlign: 'center', padding: 48 }}>
             <Spin size="large" />
             <Text style={{ display: 'block', marginTop: 16 }}>
-              Loading products...
+              Loading pottery collection...
             </Text>
           </div>
         ) : items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 48 }}>
+            <div style={{ fontSize: '48px', marginBottom: 16 }}>🏺</div>
             <Text type="secondary" style={{ fontSize: 16, display: 'block' }}>
-              No products found
+              No pottery products found
             </Text>
             <Text type="secondary" style={{ fontSize: 14 }}>
               {filters.search || filters.category || filters.lowStock
                 ? 'Try adjusting your filters or add a new product'
-                : 'Get started by adding your first product'}
+                : 'Get started by adding your first pottery product'}
             </Text>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => {
+                setSelectedProduct(null);
+                setOpenForm(true);
+              }}
+              style={{ 
+                marginTop: 16,
+                backgroundColor: '#8b4513', 
+                borderColor: '#8b4513' 
+              }}
+            >
+              Add Your First Product
+            </Button>
           </div>
         ) : (
           <>
@@ -393,7 +472,12 @@ const ProductList = () => {
 
       {/* Product Form Modal */}
       <Modal
-        title={selectedProduct ? 'Edit Product' : 'Add New Product'}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🏺</span>
+            <span>{selectedProduct ? 'Edit Product' : 'Add New Product'}</span>
+          </div>
+        }
         open={openForm}
         onCancel={() => setOpenForm(false)}
         footer={null}
@@ -405,7 +489,12 @@ const ProductList = () => {
 
       {/* Bulk Upload Modal */}
       <Modal
-        title="Bulk Upload Products"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📁</span>
+            <span>Bulk Upload Products</span>
+          </div>
+        }
         open={openBulkUpload}
         onCancel={() => setOpenBulkUpload(false)}
         footer={[

@@ -1,4 +1,4 @@
-// src/components/billing/InvoiceList.js - Business perspective version
+// src/components/billing/InvoiceList.js - Mitti Arts pottery business invoice list
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -60,14 +60,14 @@ const InvoiceList = () => {
 
   // Load orders on component mount
   useEffect(() => {
-    console.log('InvoiceList: Loading orders...');
+    console.log('InvoiceList: Loading pottery orders...');
     dispatch(fetchOrders({ limit: 100 }));
   }, [dispatch]);
 
   // Filter orders and calculate summary when orders or filters change
   useEffect(() => {
     if (orders && orders.length > 0) {
-      console.log('InvoiceList: Processing orders:', orders.length);
+      console.log('InvoiceList: Processing pottery orders:', orders.length);
       filterAndProcessOrders();
     } else {
       setFilteredInvoices([]);
@@ -115,7 +115,7 @@ const InvoiceList = () => {
       return orderDate >= thirtyDaysAgo && order.status !== 'cancelled';
     });
 
-    // Business perspective calculations
+    // Business perspective calculations for pottery
     const totalRevenue = recentOrders.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalGiven = recentOrders.reduce((sum, order) => sum + (order.discount || 0), 0);
     const totalOrders = recentOrders.length;
@@ -131,7 +131,7 @@ const InvoiceList = () => {
 
     setFilteredInvoices(filtered);
     setSummary(summaryData);
-    console.log('InvoiceList: Filtered invoices:', filtered.length);
+    console.log('InvoiceList: Filtered pottery invoices:', filtered.length);
   };
 
   const handleSearch = (value) => {
@@ -168,12 +168,12 @@ const InvoiceList = () => {
 
   const handleRefresh = () => {
     dispatch(fetchOrders({ limit: 100 }));
-    message.success('Invoices refreshed');
+    message.success('Pottery invoices refreshed');
   };
 
   const handleExport = () => {
     try {
-      // Simple CSV export with business perspective
+      // Simple CSV export with pottery business perspective
       const csvData = filteredInvoices.map(order => ({
         'Invoice Number': order.orderNumber,
         'Date': moment(order.createdAt?.toDate?.() || order.createdAt).format('YYYY-MM-DD'),
@@ -201,11 +201,11 @@ const InvoiceList = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoices-${moment().format('YYYY-MM-DD')}.csv`;
+      a.download = `mitti-arts-invoices-${moment().format('YYYY-MM-DD')}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
       
-      message.success('Invoice data exported successfully');
+      message.success('Pottery invoice data exported successfully');
     } catch (error) {
       console.error('Export error:', error);
       message.error('Export failed');
@@ -228,7 +228,7 @@ const InvoiceList = () => {
       key: 'orderNumber',
       width: 120,
       render: (text) => (
-        <Text strong style={{ color: '#1890ff' }}>{text || 'N/A'}</Text>
+        <Text strong style={{ color: '#8b4513' }}>{text || 'N/A'}</Text>
       ),
     },
     {
@@ -264,13 +264,15 @@ const InvoiceList = () => {
       ),
     },
     {
-      title: 'Items',
+      title: 'Pottery Items',
       dataIndex: 'items',
       key: 'items',
-      width: 60,
+      width: 80,
       align: 'center',
       render: (items) => (
-        <Tag color="blue">{items?.length || 0}</Tag>
+        <Tag color="#8b4513" style={{ color: 'white' }}>
+          {items?.length || 0} items
+        </Tag>
       ),
     },
     {
@@ -288,7 +290,7 @@ const InvoiceList = () => {
               Given: ₹{(record.discount || 0).toFixed(2)}
             </div>
           )}
-          <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
+          <div style={{ fontWeight: 'bold', color: '#8b4513' }}>
             Sold: ₹{(record.total || 0).toFixed(2)}
           </div>
         </div>
@@ -326,6 +328,7 @@ const InvoiceList = () => {
               size="small"
               onClick={() => handleViewInvoice(record)}
               type="primary"
+              style={{ backgroundColor: '#8b4513', borderColor: '#8b4513' }}
             />
           </Tooltip>
           <Tooltip title="Print">
@@ -343,7 +346,7 @@ const InvoiceList = () => {
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <Spin size="large" tip="Loading invoices..." />
+        <Spin size="large" tip="Loading pottery invoices..." />
       </div>
     );
   }
@@ -352,7 +355,7 @@ const InvoiceList = () => {
     return (
       <div style={{ padding: 24 }}>
         <Alert
-          message="Error Loading Invoices"
+          message="Error Loading Pottery Invoices"
           description={error}
           type="error"
           showIcon
@@ -367,53 +370,91 @@ const InvoiceList = () => {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, backgroundColor: '#fafafa' }}>
+      {/* Header with Mitti Arts branding */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', 
+        color: 'white', 
+        padding: '20px', 
+        borderRadius: '12px',
+        marginBottom: 24,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            background: 'white',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#8b4513',
+            fontWeight: 'bold',
+            fontSize: '24px'
+          }}>
+            🏺
+          </div>
+          <div>
+            <Title level={2} style={{ margin: 0, color: 'white' }}>
+              Mitti Arts Invoices
+            </Title>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
+              Pottery Sales & Customer Transactions
+            </Text>
+          </div>
+        </div>
+        <div style={{ fontSize: '32px', opacity: 0.3 }}>📄</div>
+      </div>
+
       {/* Summary Cards - Business Perspective */}
       {summary && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ border: '1px solid #8b4513' }}>
               <Statistic
-                title="Total Invoices (30 days)"
+                title="Pottery Invoices (30 days)"
                 value={summary.totalInvoices}
                 prefix={<CalendarOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: '#8b4513' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ border: '1px solid #8b4513' }}>
               <Statistic
-                title="Total Revenue"
+                title="Pottery Revenue"
                 value={summary.totalRevenue}
                 prefix="₹"
                 precision={2}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: '#228b22' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ border: '1px solid #8b4513' }}>
               <Statistic
-                title="Discounts Given"
+                title="Customer Discounts"
                 value={summary.totalDiscountGiven}
                 prefix="₹"
                 precision={2}
                 valueStyle={{ color: '#fa8c16' }}
               />
               <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
-                Value provided to customers
+                Value provided to pottery customers
               </div>
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card>
+            <Card style={{ border: '1px solid #8b4513' }}>
               <Statistic
-                title="Avg Order Value"
+                title="Avg Pottery Order"
                 value={summary.averageOrderValue}
                 prefix="₹"
                 precision={2}
-                valueStyle={{ color: '#722ed1' }}
+                valueStyle={{ color: '#cd853f' }}
               />
             </Card>
           </Col>
@@ -424,8 +465,8 @@ const InvoiceList = () => {
       <Card>
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
-            <Title level={4} style={{ margin: 0 }}>
-              Sales Invoices ({filteredInvoices.length})
+            <Title level={4} style={{ margin: 0, color: '#8b4513' }}>
+              Pottery Sales Invoices ({filteredInvoices.length})
             </Title>
           </Col>
           <Col>
@@ -433,6 +474,7 @@ const InvoiceList = () => {
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleRefresh}
+                style={{ borderColor: '#8b4513', color: '#8b4513' }}
               >
                 Refresh
               </Button>
@@ -440,6 +482,7 @@ const InvoiceList = () => {
                 icon={<ExportOutlined />}
                 onClick={handleExport}
                 disabled={filteredInvoices.length === 0}
+                style={{ borderColor: '#8b4513', color: '#8b4513' }}
               >
                 Export
               </Button>
@@ -451,7 +494,7 @@ const InvoiceList = () => {
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} md={6}>
             <Input.Search
-              placeholder="Search invoices..."
+              placeholder="Search pottery invoices..."
               prefix={<SearchOutlined />}
               onSearch={handleSearch}
               onChange={(e) => {
@@ -500,7 +543,7 @@ const InvoiceList = () => {
           </Col>
           <Col xs={24} sm={8} md={5}>
             <Text type="secondary">
-              Showing {filteredInvoices.length} of {orders.length} invoices
+              Showing {filteredInvoices.length} of {orders.length} pottery invoices
             </Text>
           </Col>
         </Row>
@@ -508,12 +551,13 @@ const InvoiceList = () => {
         {/* Table */}
         {filteredInvoices.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 48 }}>
+            <div style={{ fontSize: '48px', marginBottom: 16 }}>🏺</div>
             <Text type="secondary" style={{ fontSize: 16 }}>
-              {orders.length === 0 ? 'No invoices found' : 'No invoices match your filters'}
+              {orders.length === 0 ? 'No pottery invoices found' : 'No pottery invoices match your filters'}
             </Text>
             <br />
             <Text type="secondary">
-              {orders.length === 0 ? 'Create your first invoice by going to Billing' : 'Try adjusting your search criteria'}
+              {orders.length === 0 ? 'Create your first pottery invoice by going to Billing' : 'Try adjusting your search criteria'}
             </Text>
           </div>
         ) : (
@@ -527,7 +571,7 @@ const InvoiceList = () => {
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total, range) =>
-                `${range[0]}-${range[1]} of ${total} invoices`,
+                `${range[0]}-${range[1]} of ${total} pottery invoices`,
             }}
             scroll={{ x: 'max-content' }}
             size="middle"
@@ -545,7 +589,7 @@ const InvoiceList = () => {
                       <div style={{ fontSize: '12px', color: '#fa8c16' }}>
                         Discount: ₹{pageDiscount.toFixed(2)}
                       </div>
-                      <div style={{ fontWeight: 'bold', color: '#1890ff' }}>
+                      <div style={{ fontWeight: 'bold', color: '#8b4513' }}>
                         Revenue: ₹{pageTotal.toFixed(2)}
                       </div>
                     </div>
@@ -556,6 +600,48 @@ const InvoiceList = () => {
             }}
           />
         )}
+      </Card>
+
+      {/* Pottery Business Tips */}
+      <Card 
+        title={
+          <Space>
+            <span>💡</span>
+            <Text strong>Pottery Business Tips</Text>
+          </Space>
+        } 
+        style={{ marginTop: 16 }}
+        bodyStyle={{ backgroundColor: '#f9f9f9' }}
+      >
+        <Row gutter={16}>
+          <Col span={8}>
+            <div style={{ textAlign: 'center', padding: '12px' }}>
+              <div style={{ fontSize: '20px', marginBottom: 8 }}>🏺</div>
+              <Text strong>Quality Craftsmanship</Text>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Focus on unique, handcrafted pottery pieces
+              </div>
+            </div>
+          </Col>
+          <Col span={8}>
+            <div style={{ textAlign: 'center', padding: '12px' }}>
+              <div style={{ fontSize: '20px', marginBottom: 8 }}>📱</div>
+              <Text strong>Digital Invoicing</Text>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Modern billing for traditional pottery art
+              </div>
+            </div>
+          </Col>
+          <Col span={8}>
+            <div style={{ textAlign: 'center', padding: '12px' }}>
+              <div style={{ fontSize: '20px', marginBottom: 8 }}>🎨</div>
+              <Text strong>Custom Orders</Text>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Personalized pottery for every customer
+              </div>
+            </div>
+          </Col>
+        </Row>
       </Card>
     </div>
   );

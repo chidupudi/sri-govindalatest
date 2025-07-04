@@ -18,7 +18,6 @@ const { Title, Text } = Typography;
 
 const Login = () => {
   const [form] = Form.useForm();
-  // const [showPassword, setShowPassword] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -53,7 +52,7 @@ const Login = () => {
         style={{ width: 400 }}
         title={
           <Space direction="vertical" style={{ width: '100%' }} align="center">
-            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>Sri Govinda</Title>
+            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>Mitti Arts</Title>
             <Title level={4}>Sign In</Title>
           </Space>
         }

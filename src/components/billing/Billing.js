@@ -1,4 +1,4 @@
-// src/components/billing/Billing.js - Business perspective version
+// src/components/billing/Billing.js - Business perspective version with Mitti Arts branding
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -401,7 +401,43 @@ const Billing = () => {
 
   return (
     <div style={{ padding: 16, height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
-      <Row gutter={12} style={{ height: '100%' }}>
+      {/* Header with Mitti Arts branding */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #8b4513 0%, #a0522d 100%)', 
+        color: 'white', 
+        padding: '12px 20px', 
+        borderRadius: '8px 8px 0 0',
+        marginBottom: 16,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            background: 'white',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#8b4513',
+            fontWeight: 'bold',
+            fontSize: '16px'
+          }}>
+            MA
+          </div>
+          <div>
+            <Title level={4} style={{ margin: 0, color: 'white' }}>Mitti Arts - Point of Sale</Title>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
+              🏺 Handcrafted Pottery & Terracotta Art
+            </Text>
+          </div>
+        </div>
+        <div style={{ fontSize: '24px', opacity: 0.3 }}>🏺</div>
+      </div>
+
+      <Row gutter={12} style={{ height: 'calc(100% - 80px)' }}>
         {/* Left Panel - Product Selection & Cart */}
         <Col xs={24} lg={14} style={{ height: '100%' }}>
           <Card 

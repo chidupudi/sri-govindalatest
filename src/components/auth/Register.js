@@ -73,7 +73,7 @@ const Register = () => {
     <div style={{ display: 'flex', justifyContent: 'center', padding: '50px 0', minHeight: '100vh' }}>
       <Card style={{ width: 400 }} bordered={false}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 0 }}>Sri Govinda</Title>
+          <Title level={2} style={{ marginBottom: 0 }}>Mitti Arts</Title>
           <Text type="secondary">Create Account</Text>
         </div>
 
